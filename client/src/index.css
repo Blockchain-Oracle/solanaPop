@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+@import './styles/animations.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 158 88% 47%;
+  --primary-foreground: 211 100% 99%;
+  --secondary: 266 100% 64%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 158 100% 50%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+  --radius: 0.5rem;
+
+  /* Custom Solana Colors */
+  --solana-green: 158 88% 47%;
+  --solana-purple: 266 100% 64%;
+  --solana-dark: 0 0% 7%;
+  --solana-darker: 0 0% 4%;
+  --solana-neon: 157 100% 50%;
+  --glass-bg: 0 0% 100% / 0.05;
+
+  /* Chart Colors */
+  --chart-1: var(--solana-green);
+  --chart-2: var(--solana-purple);
+  --chart-3: 262 83% 58%;
+  --chart-4: 221 83% 53%;
+  --chart-5: 316 70% 50%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-black text-foreground font-inter;
+    background-image: 
+      radial-gradient(circle at 5% 10%, hsla(var(--solana-green) / 0.15) 0%, transparent 30%),
+      radial-gradient(circle at 95% 90%, hsla(var(--solana-purple) / 0.15) 0%, transparent 30%),
+      linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 100%);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-glass-bg backdrop-blur-md border border-white/10 rounded-xl;
+  }
+
+  .gradient-border {
+    @apply relative rounded-xl;
+  }
+
+  .gradient-border::before {
+    content: "";
+    @apply absolute -inset-0.5 bg-gradient-to-r from-solana-green to-solana-purple -z-10 rounded-xl;
+  }
+
+  .button-gradient {
+    @apply bg-gradient-to-r from-solana-green to-solana-purple;
+  }
+
+  .tab-active {
+    @apply bg-gradient-to-r from-solana-green to-solana-purple bg-clip-text text-transparent border-b-2 border-solana-green;
+  }
+}
+
+@layer utilities {
+  .font-space {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .font-inter {
+    font-family: 'Inter', sans-serif;
+  }
+}
