@@ -1,21 +1,32 @@
-import { useWallet } from "@/components/walletProvider";
+import { useWallet } from "@/hooks/use-wallet";
 import { Button } from "@/components/ui/button";
-import { Home, Wallet } from "lucide-react";
+import { Home, Wallet, Loader2, LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface HeaderProps {
   onReturnHome?: () => void;
 }
 
 export default function Header({ onReturnHome }: HeaderProps) {
-  const { connected, connectWallet, disconnectWallet, walletAddress } = useWallet();
+  const { connected, connecting, connectWallet, disconnectWallet, walletAddress, publicKey } = useWallet();
+  const [showDisconnect, setShowDisconnect] = useState(false);
   
   // Handle wallet connection
   const handleWalletClick = () => {
     if (connected) {
-      disconnectWallet();
+      // Toggle disconnect button instead of immediately disconnecting
+      setShowDisconnect(!showDisconnect);
     } else {
       connectWallet();
     }
+  };
+
+  // Handle disconnect click
+  const handleDisconnect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    disconnectWallet();
+    setShowDisconnect(false);
   };
 
   return (
@@ -62,18 +73,46 @@ export default function Header({ onReturnHome }: HeaderProps) {
         )}
         
         {/* Wallet Connection */}
-        <Button 
-          variant="ghost" 
-          className="glass px-5 py-2.5 rounded-full flex items-center hover:bg-white/10"
-          onClick={handleWalletClick}
-        >
-          <span className="mr-2 text-sm">
-            {connected 
-              ? `${walletAddress?.slice(0, 4)}...${walletAddress?.slice(-4)}` 
-              : "Connect Wallet"}
-          </span>
-          <Wallet className="h-4 w-4" />
-        </Button>
+        <div className="relative">
+          <Button 
+            variant="ghost" 
+            className={cn(
+              "glass px-5 py-2.5 rounded-full flex items-center",
+              connected ? "bg-green-600/20 hover:bg-green-600/30" : "hover:bg-white/10",
+              connecting && "animate-pulse"
+            )}
+            onClick={handleWalletClick}
+            disabled={connecting}
+          >
+            <span className="mr-2 text-sm">
+              {connecting ? (
+                "Connecting..."
+              ) : connected ? (
+                walletAddress
+              ) : (
+                "Connect Wallet"
+              )}
+            </span>
+            {connecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wallet className="h-4 w-4" />
+            )}
+          </Button>
+          
+          {/* Disconnect dropdown button */}
+          {connected && showDisconnect && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="absolute top-full mt-1 right-0 py-1 px-3 text-xs flex items-center gap-1"
+              onClick={handleDisconnect}
+            >
+              <span>Disconnect</span>
+              <LogOut className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

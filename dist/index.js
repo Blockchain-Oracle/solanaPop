@@ -98,6 +98,8 @@ var insertTokenClaimSchema = createInsertSchema(tokenClaims).pick({
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
+import dotenv from "dotenv";
+dotenv.config();
 if (!process.env.DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?"
@@ -355,7 +357,10 @@ async function setupVite(app2, server) {
         process.exit(1);
       }
     },
-    server: serverOptions,
+    server: {
+      ...serverOptions,
+      allowedHosts: void 0
+    },
     appType: "custom"
   });
   app2.use(vite.middlewares);
@@ -435,12 +440,8 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
-  const port = 5e3;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true
-  }, () => {
-    log(`serving on port ${port}`);
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 4e3;
+  server.listen(port, () => {
+    log(`Server listening at http://localhost:${port}`);
   });
 })();

@@ -1,28 +1,80 @@
-# SolanaPop Wallet Integration PRD
+# Solana POP - Proof-of-Participation Token Platform PRD
 
-## Overview
-Implement Solana wallet connection functionality for the SolanaPop application, enabling users to connect their Solana wallets and interact with the blockchain.
+## Introduction
 
-## Requirements
-1. Integrate Solana wallet adapter into the React application
-2. Create a WalletProvider component to manage wallet connections
-3. Implement a wallet connection button component
-4. Set up proper connection to Solana devnet
-5. Provide hooks for accessing wallet and connection information
-6. Ensure proper error handling for wallet connection states
-7. Support multiple wallet providers through the wallet adapter
+Solana POP is a web-based platform for creating, distributing, and claiming Proof-of-Participation tokens on the Solana blockchain. The platform enables event organizers to mint tokens for their events and distribute them via QR codes, while attendees can scan these codes to collect tokens as digital proof of their participation.
 
-## Technical Specifications
-- Use @solana/wallet-adapter-react and related packages
-- Support Phantom, Solflare, and other popular Solana wallets
-- Implement proper UI feedback for connecting, connected, and disconnected states
-- Ensure client-side implementation with proper React context setup
-- Configure connection to Solana devnet for development
+## Current Implementation Status
+
+The platform has a basic implementation with simulated functionality:
+
+- React frontend with Creator and Attendee views
+- Wallet connection (Phantom)
+- Token creation interface
+- QR code generation and display
+- Token claiming simulation
+- Basic responsive design
+
+## Required Implementations
+
+The following features need to be fully implemented:
+
+### Priority 1: QR Code Scanning
+- Implement real QR code scanning using device camera
+- Add secure token data encoding in QR codes
+- Implement QR code validation with expiration timestamps
+- Prevent double-claims of tokens
+
+### Priority 2: Event Management
+- Create detailed event creation flow with location, date, capacity
+- Implement event dashboard for analytics
+- Add event categories and access control options
+- Establish relationship between events and tokens
+
+### Priority 3: Solana Integration
+- Implement actual token minting using SPL Token program
+- Create and manage token metadata using Metaplex
+- Add transaction building, signing, and confirmation processes
+- Implement chain monitoring for token status
+
+### Priority 4: User Authentication
+- Enhance user profiles with social media links
+- Add email-based authentication options
+- Implement role-based access control
+- Add two-factor authentication for security
+
+### Priority 5: Token Distribution
+- Implement multiple distribution methods (email, location-based)
+- Create different token types and reward tiers
+- Add collectible token sets
+
+### Priority 6: Social Sharing
+- Implement social sharing for claimed tokens
+- Create shareable card images
+- Add referral system with rewards
+- Implement community features (comments, likes)
+
+### Priority 7: Mobile Optimization
+- Create mobile-specific layouts
+- Implement offline functionality
+- Add push notifications and calendar integration
+
+## Technical Requirements
+
+- Frontend: React (TypeScript), TailwindCSS, ShadCN UI, TanStack Query
+- Backend: Express.js, Drizzle ORM
+- Database: PostgreSQL
+- Blockchain: Solana Web3.js, SPL Token
+- Mobile: Responsive design with mobile-specific optimizations
+
+## Timeline
+
+Implementation should focus on priorities in order, with QR Code Scanning and Event Management being the most critical for initial functional release, followed by Solana Integration for actual blockchain functionality.
 
 ## Success Criteria
-- Users can connect their Solana wallets to the application
-- Connection state persists across page refreshes
-- Wallet public key is accessible throughout the application
-- Connection can be established to the Solana devnet
-- Multiple wallet types are supported
-- Clean error handling for failed connections 
+
+- Successful creation, distribution, and claiming of tokens
+- Proper on-chain verification of token ownership
+- Intuitive user experience for both creators and attendees
+- Mobile-friendly interface that works well on various devices
+- Secure authentication and data management 

@@ -6,8 +6,10 @@ import {
   insertTokenSchema, 
   insertTokenClaimSchema, 
   insertUserSchema,
+  insertEventSchema,
   tokens,
-  tokenClaims
+  tokenClaims,
+  events
 } from "@shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -58,6 +60,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json(tokens);
     } catch (error) {
       return res.status(500).json({ error: "Failed to fetch tokens" });
+    }
+  });
+
+  // API routes for events
+  app.post("/api/events", async (req: Request, res: Response) => {
+    try {
+      const eventData = insertEventSchema.parse(req.body);
+      const event = await storage.createEvent(eventData);
+      return res.status(201).json(event);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      console.error("Error creating event:", error);
+      return res.status(500).json({ error: "Failed to create event" });
+    }
+  });
+
+  app.get("/api/events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid event ID" });
+      }
+      
+      const event = await storage.getEvent(id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      return res.json(event);
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to fetch event" });
+    }
+  });
+
+  app.get("/api/events/creator/:creatorId", async (req: Request, res: Response) => {
+    try {
+      const creatorId = parseInt(req.params.creatorId);
+      if (isNaN(creatorId)) {
+        return res.status(400).json({ error: "Invalid creator ID" });
+      }
+      
+      const events = await storage.getEventsByCreator(creatorId);
+      return res.json(events);
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to fetch events" });
+    }
+  });
+
+  app.put("/api/events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid event ID" });
+      }
+      
+      // Get existing event to verify it exists
+      const existingEvent = await storage.getEvent(id);
+      if (!existingEvent) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      // Only validate fields that are provided
+      const updateData = req.body;
+      const updatedEvent = await storage.updateEvent(id, updateData);
+      
+      return res.json(updatedEvent);
+    } catch (error) {
+      console.error("Error updating event:", error);
+      return res.status(500).json({ error: "Failed to update event" });
+    }
+  });
+
+  app.delete("/api/events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid event ID" });
+      }
+      
+      const success = await storage.deleteEvent(id);
+      if (!success) {
+        return res.status(404).json({ error: "Event not found or could not be deleted" });
+      }
+      
+      return res.json({ success: true, message: "Event deleted successfully" });
+    } catch (error) {
+      return res.status(500).json({ error: "Failed to delete event" });
     }
   });
 

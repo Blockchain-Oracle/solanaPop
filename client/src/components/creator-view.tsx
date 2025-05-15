@@ -5,7 +5,7 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useWallet } from "@/components/walletProvider";
+import { useWallet } from "@/hooks/use-wallet";
 import { Token } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -45,7 +45,7 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
   });
   
   // Get creator's tokens
-  const { data: tokens, isLoading } = useQuery({
+  const { data: tokens, isLoading } = useQuery<Token[]>({
     queryKey: ["/api/tokens/creator/1"], // Using hardcoded creatorId=1 for demo
     enabled: connected, // Only fetch if wallet is connected
   });

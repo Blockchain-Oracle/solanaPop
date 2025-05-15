@@ -1,6 +1,8 @@
 import { defineConfig } from "drizzle-kit";
+import dotenv from "dotenv";
 
-// No need for dotenv here, environment variables will be loaded by Node.js
+// Load environment variables
+dotenv.config();
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL environment variable is required");

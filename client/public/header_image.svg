@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="900" height="180" viewBox="0 0 900 180" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="900" height="180" fill="#121212"/>
+  
+  <!-- Gradient Overlay -->
+  <rect width="900" height="180" fill="url(#gradient)" opacity="0.3"/>
+  
+  <!-- Logo Circle -->
+  <circle cx="120" cy="90" r="60" fill="url(#logoGradient)"/>
+  
+  <!-- Logo Icon -->
+  <path d="M150 90H90C90 77.85 99.85 68 112 68H150V90ZM150 102H90V124H112C124.15 124 150 120 150 102Z" fill="white"/>
+  
+  <!-- Text -->
+  <text x="200" y="85" font-family="'Space Grotesk', sans-serif" font-weight="700" font-size="48" fill="white">Solana <tspan fill="#14F195">POP</tspan></text>
+  <text x="200" y="120" font-family="'Inter', sans-serif" font-size="18" fill="#AAAAAA">Proof-of-Participation Token Platform</text>
+  
+  <!-- QR Code (stylized) -->
+  <g transform="translate(720, 55)">
+    <rect x="0" y="0" width="70" height="70" rx="8" fill="#00000000" stroke="#FFFFFF40" stroke-width="2"/>
+    <rect x="15" y="15" width="10" height="10" rx="2" fill="#FFFFFF"/>
+    <rect x="45" y="15" width="10" height="10" rx="2" fill="#FFFFFF"/>
+    <rect x="15" y="45" width="10" height="10" rx="2" fill="#FFFFFF"/>
+    <rect x="30" y="30" width="10" height="10" rx="2" fill="#FFFFFF"/>
+  </g>
+  
+  <!-- Definitions -->
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="900" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14F195"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+    
+    <linearGradient id="logoGradient" x1="60" y1="30" x2="180" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14F195"/>
+      <stop offset="1" stop-color="#9945FF"/>
+    </linearGradient>
+  </defs>
+</svg>

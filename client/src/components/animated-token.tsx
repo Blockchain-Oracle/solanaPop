@@ -80,12 +80,13 @@ export default function AnimatedToken({ index }: AnimatedTokenProps) {
       // Enable 3D rotation
       setIsRotating(true);
       
-      // Just flip to 180 degrees and stay there
+      // Start continuous rotation effect
       rotateControls.start({
-        rotateY: 180,
+        rotateY: [0, 360],
         transition: {
-          duration: 0.5,
-          ease: "easeOut"
+          duration: 3,
+          ease: "easeInOut",
+          repeat: Infinity
         }
       });
       
