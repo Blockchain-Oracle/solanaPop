@@ -394,7 +394,7 @@ export default function CreateEvent() {
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem value="" disabled>
+                            <SelectItem value="no-tokens" disabled>
                               No tokens available. Create a token first.
                             </SelectItem>
                           )}

@@ -11,42 +11,52 @@ import { format } from "date-fns";
 import { QRCodeScanner } from "@/components/qr-code-scanner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { playSuccessBeep } from "@/lib/sound";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CheckIcon } from "lucide-react";
 
 interface AttendeeViewProps {
-  onShowTransaction: (token: Token) => void;
+  onShowTransaction?: (token: Token) => void;
 }
 
 export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { connected, walletAddress } = useWallet();
-  const [scanning, setScanning] = useState(false);
-  const [processingQR, setProcessingQR] = useState(false);
+  const wallet = useWallet();
+  const isMobile = useIsMobile();
+  const [isScanning, setIsScanning] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // Get claimed tokens by wallet address using the enhanced endpoint
   const { data: claims, isLoading } = useQuery({
-    queryKey: ["/api/claims/wallet", walletAddress],
+    queryKey: ["/api/claims/wallet", wallet.walletAddress],
     queryFn: async () => {
-      if (!walletAddress) return [];
-      const response = await fetch(`/api/claims/wallet/${walletAddress}/with-tokens`);
+      if (!wallet.walletAddress) return [];
+      const response = await fetch(`/api/claims/wallet/${wallet.walletAddress}/with-tokens`);
       if (!response.ok) throw new Error("Failed to fetch claims");
       return response.json();
     },
-    enabled: !!walletAddress && connected,
+    enabled: !!wallet.walletAddress && wallet.connected,
   });
   
   // Claim token mutation
   const claimTokenMutation = useMutation({
     mutationFn: async (tokenId: number) => {
-      if (!walletAddress) throw new Error("Wallet not connected");
+      if (!wallet.walletAddress) throw new Error("Wallet not connected");
       
       const data = {
         tokenId,
         userId: 1, // Hardcoded for demo
-        walletAddress,
+        walletAddress: wallet.walletAddress,
       };
       
-      const response = await apiRequest("POST", "/api/claims", data);
+      const response = await fetch("/api/claims", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -68,83 +78,113 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/claims/wallet", walletAddress] });
+      queryClient.invalidateQueries({ queryKey: ["/api/claims/wallet", wallet.walletAddress] });
       
       // Show token claim success UI
-      onShowTransaction(data.token);
+      toast({
+        title: "Token Claimed!",
+        description: `${data.token.symbol} has been added to your collection`,
+      });
+      
+      // Trigger transaction visualization if provided
+      if (onShowTransaction && data.token) {
+        onShowTransaction(data.token);
+      }
+      
+      setIsProcessing(false);
     },
     onError: (error) => {
+      console.error("Failed to claim token:", error);
       toast({
-        title: "Claim failed",
-        description: error.message || "Failed to claim token",
+        title: "Claim Failed",
+        description: error instanceof Error ? error.message : "Failed to claim token",
         variant: "destructive",
       });
-      setScanning(false);
+      setIsScanning(false);
     },
   });
   
-  // Handle QR code scan result
-  const handleQrScan = (qrData: string) => {
+  // Define a helper function to extract token ID and symbol from QR data
+  const parseQrData = (qrData: string): { tokenId: string; tokenSymbol: string } | null => {
+    // Expected format: solanapop://token/{tokenId}/{tokenSymbol}
+    const qrRegex = /solanapop:\/\/token\/([^/]+)\/([^/]+)/;
+    const match = qrData.match(qrRegex);
+    
+    if (!match || match.length < 3) {
+      return null;
+    }
+    
+    return {
+      tokenId: match[1],
+      tokenSymbol: match[2]
+    };
+  };
+  
+  const handleQrScan = async (qrData: string) => {
+    setIsProcessing(true);
+    console.log("QR scan result:", qrData);
+    
     try {
-      // Set processing state to true
-      setProcessingQR(true);
+      // Parse the QR data
+      const tokenData = parseQrData(qrData);
       
-      console.log("QR Data received:", qrData);
-      
-      // Parse QR data
-      // Expected format: solanapop://token/{tokenId}/{tokenSymbol}
-      const tokenPattern = /solanapop:\/\/token\/(\d+)\/([A-Z0-9]+)/;
-      const match = qrData.match(tokenPattern);
-      
-      if (!match) {
+      if (!tokenData) {
         toast({
-          title: "Invalid QR Code",
-          description: "This QR code is not a valid Solana POP token",
-          variant: "destructive",
+          title: 'Invalid QR Code',
+          description: 'This QR code does not contain valid token data',
+          variant: 'destructive'
         });
-        setScanning(false);
-        setProcessingQR(false);
+        setIsProcessing(false);
         return;
       }
       
-      const tokenId = parseInt(match[1]);
-      const tokenSymbol = match[2];
-      
-      console.log(`Token detected: ID=${tokenId}, Symbol=${tokenSymbol}`);
+      console.log(`Detected token: ID=${tokenData.tokenId}, Symbol=${tokenData.tokenSymbol}`);
       
       // Play success sound
       playSuccessBeep();
       
-      // Claim the token after a brief delay to show the success indicator
+      // Show success state briefly
+      setShowSuccess(true);
+      setIsScanning(false);
+      
+      // Add a short delay to allow the success UI to show before claiming the token
       setTimeout(() => {
-        claimTokenMutation.mutate(tokenId);
-        setProcessingQR(false);
+        // Claim the scanned token
+        claimTokenMutation.mutate(parseInt(tokenData.tokenId));
       }, 1000);
       
     } catch (error) {
-      console.error("Error parsing QR data:", error);
+      console.error('Error handling QR scan:', error);
       toast({
-        title: "Invalid QR Code",
-        description: "Could not process the QR code data",
-        variant: "destructive",
+        title: 'Scan Failed',
+        description: 'Could not process the QR code. Please try again.',
+        variant: 'destructive'
       });
-      setProcessingQR(false);
-      setScanning(false);
+      setIsProcessing(false);
     }
   };
-
-  // Handle QR code scanning
+  
   const handleScanClick = () => {
-    if (!connected) {
+    if (!wallet.connected) {
       toast({
-        title: "Wallet not connected",
-        description: "Please connect your wallet to claim tokens",
-        variant: "destructive",
+        title: 'Wallet Not Connected',
+        description: 'Please connect your wallet to scan for tokens',
+        variant: 'destructive'
       });
       return;
     }
     
-    setScanning(true);
+    setIsScanning(true);
+  };
+  
+  const handleCloseScanner = () => {
+    setIsScanning(false);
+  };
+  
+  // For development/testing without hardware camera
+  const handleSimulateScan = () => {
+    if (!wallet.connected) return;
+    handleQrScan('solanapop://token/1/DEMO');
   };
 
   return (
@@ -155,9 +195,9 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
         <p className="text-white/70 mb-4">Scan QR codes from events to collect proof-of-participation tokens on Solana.</p>
         
         <div className="flex items-center space-x-2 p-3 bg-solana-darker/40 rounded-lg w-fit">
-          <div className={`h-2 w-2 rounded-full ${connected ? "bg-solana-green" : "bg-destructive"}`}></div>
+          <div className={`h-2 w-2 rounded-full ${wallet.connected ? "bg-solana-green" : "bg-destructive"}`}></div>
           <span className="text-sm text-white/90">
-            {connected 
+            {wallet.connected 
               ? "Wallet Connected" 
               : "Wallet not connected"}
           </span>
@@ -193,7 +233,7 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
             <Button 
               onClick={handleScanClick}
               className="button-gradient hover:opacity-90"
-              disabled={!connected}
+              disabled={!wallet.connected}
             >
               <QrCodeIcon className="mr-2 h-4 w-4" /> 
               Scan QR Code
@@ -201,10 +241,10 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
             
             {/* Dev testing button - remove in production */}
             <Button 
-              onClick={() => handleQrScan("solanapop://token/1/DEMO")}
+              onClick={handleSimulateScan}
               variant="outline"
               className="bg-solana-darker/40 border-white/10 text-xs"
-              disabled={!connected}
+              disabled={!wallet.connected}
             >
               Simulate Scan (Dev Only)
             </Button>
@@ -229,25 +269,30 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
       </div>
       
       {/* QR Scanner Modal */}
-      <Dialog open={scanning} onOpenChange={(open) => !open && setScanning(false)}>
-        <DialogContent className="glass border-0 max-w-md mx-4 p-6">
-          {processingQR ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <div className="h-16 w-16 rounded-full bg-solana-green/20 flex items-center justify-center mb-4">
-                <ScanLine className="h-8 w-8 text-solana-green animate-pulse" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Processing QR Code</h3>
-              <p className="text-white/70 text-center">Verifying token and processing claim...</p>
-            </div>
-          ) : (
+      {isScanning && (
+        <Dialog open={isScanning} onOpenChange={(open) => !open && setIsScanning(false)}>
+          <DialogContent className="sm:max-w-sm p-0 bg-solana-darker border-solana-darkest">
             <QRCodeScanner 
               onScan={handleQrScan} 
-              onClose={() => setScanning(false)}
-              isScanning={scanning}
+              onClose={() => setIsScanning(false)}
+              isScanning={isScanning}
             />
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* Success overlay */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+          <div className="success-container text-center p-8 bg-solana-darker rounded-xl border border-solana-green/30">
+            <div className="check-circle mb-4 mx-auto w-16 h-16 rounded-full bg-solana-green/20 flex items-center justify-center">
+              <CheckIcon className="w-8 h-8 text-solana-green" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Token Found!</h3>
+            <p className="text-white/70 mb-4">Claiming your new token...</p>
+          </div>
+        </div>
+      )}
       
       {/* Collection Section */}
       <div className="glass rounded-xl p-6">
@@ -258,7 +303,7 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
           </div>
         </div>
         
-        {!connected ? (
+        {!wallet.connected ? (
           <Card className="bg-solana-darker/40 border-0">
             <CardContent className="flex flex-col items-center justify-center py-8">
               <p className="text-white/70 mb-4">Connect your wallet to view your tokens</p>
