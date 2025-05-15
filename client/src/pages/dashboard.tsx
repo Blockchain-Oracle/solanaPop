@@ -227,7 +227,7 @@ export default function Dashboard() {
                         <Button 
                           variant="outline" 
                           className="text-sm bg-solana-darker/40 text-white/90 border-white/10"
-                          onClick={() => navigate(`/token/${token.id}`)}
+                          onClick={() => navigate(`/token/${token.id}/edit`)}
                         >
                           <QrCode className="mr-2 h-4 w-4" /> Manage
                         </Button>

@@ -7,28 +7,31 @@ import Dashboard from "@/pages/dashboard";
 import CreateToken from "@/pages/create-token";
 import CreateEvent from "@/pages/create-event";
 import TokenDetail from "@/pages/token-detail";
+import TokenEdit from "@/pages/token/[id]/edit";
 import EventDetail from "@/pages/event-detail";
 import Claim from "@/pages/claim";
 import { WalletProvider } from "@/components/walletProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 
-// Token Detail route matcher
-const TokenDetailRoute = () => {
-  const [match, params] = useRoute("/token/:id");
-  return match ? <TokenDetail params={params} /> : null;
+// Token Detail route component
+const TokenDetailRoute = ({ params }: { params: { id: string } }) => {
+  return <TokenDetail params={params} />;
 };
 
-// Event Detail route matcher
-const EventDetailRoute = () => {
-  const [match, params] = useRoute("/event/:id");
-  return match ? <EventDetail /> : null;
+// Token Edit route component
+const TokenEditRoute = ({ params }: { params: { id: string } }) => {
+  return <TokenEdit params={params} />;
 };
 
-// Claim route matcher
-const ClaimRoute = () => {
-  const [match, params] = useRoute("/claim/:id");
-  return match ? <Claim params={params} /> : null;
+// Event Detail route component
+const EventDetailRoute = ({ params }: { params: { id: string } }) => {
+  return <EventDetail />;
+};
+
+// Claim route component
+const ClaimRoute = ({ params }: { params: { id: string } }) => {
+  return <Claim params={params} />;
 };
 
 function Router() {
@@ -38,11 +41,12 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/create-token" component={CreateToken} />
       <Route path="/create-event" component={CreateEvent} />
-      <Route path="/token/:id">{TokenDetailRoute}</Route>
-      <Route path="/event/:id">{EventDetailRoute}</Route>
-      <Route path="/claim/:id">{ClaimRoute}</Route>
+      <Route path="/token/:id/edit" component={TokenEditRoute} />
+      <Route path="/token/:id" component={TokenDetailRoute} />
+      <Route path="/event/:id" component={EventDetailRoute} />
+      <Route path="/claim/:id" component={ClaimRoute} />
       <Route component={NotFound} />
-    </Switch>
+    </Switch> 
   );
 }
 

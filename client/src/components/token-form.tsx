@@ -22,21 +22,14 @@ import { Calendar } from "@/components/ui/calendar";
 
 // Token form schema with extended validation
 const tokenFormSchema = z.object({
-  name: z.string()
-    .min(3, { message: "Token name must be at least 3 characters." })
-    .max(50, { message: "Token name cannot exceed 50 characters." }),
-  symbol: z.string()
-    .min(2, { message: "Symbol must be at least 2 characters." })
-    .max(10, { message: "Symbol cannot exceed 10 characters." })
-    .regex(/^[A-Z0-9]+$/, { message: "Symbol must contain only uppercase letters and numbers." }),
-  description: z.string()
-    .min(10, { message: "Please provide a more detailed description." })
-    .max(250, { message: "Description cannot exceed 250 characters." }),
-  supply: z.number()
-    .min(1, { message: "Supply must be at least 1." })
-    .max(10000, { message: "Supply cannot exceed 10,000 for this type of token." }),
+  name: z.string().min(1, "Name is required"),
+  symbol: z.string().min(1, "Symbol is required").max(6, "Symbol must be 6 characters or less"),
+  description: z.string().min(1, "Description is required"),
+  supply: z.coerce.number().min(1, "Supply must be at least 1"),
   expiryDate: z.date().optional(),
+  includeExpiry: z.boolean().optional(),
   category: z.string().optional(),
+  whitelistEnabled: z.boolean().optional(),
 });
 
 // Define token interface to match API response
@@ -80,6 +73,7 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
       supply: token?.supply || 100,
       expiryDate: token?.expiryDate ? new Date(token.expiryDate) : undefined,
       category: token?.category || "event",
+      whitelistEnabled: token?.whitelistEnabled || false,
     },
   });
   
@@ -93,6 +87,10 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
         const data = {
           ...tokenData,
           creatorId: walletAddress,
+          creatorAddress: walletAddress,
+          supply: parseInt(String(tokenData.supply)),
+          expiryDate: tokenData.expiryDate ? tokenData.expiryDate.toISOString() : null,
+          whitelistEnabled: tokenData.whitelistEnabled
         };
         
         // Determine if we're creating or updating

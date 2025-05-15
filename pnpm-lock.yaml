@@ -150,7 +150,7 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       drizzle-orm:
-        specifier: ^0.39.1
+        specifier: ^0.39.3
         version: 0.39.3(@neondatabase/serverless@0.10.4)(@types/pg@8.15.1)(pg@8.16.0)
       drizzle-zod:
         specifier: ^0.7.0
@@ -237,7 +237,7 @@ importers:
         specifier: ^3.3.5
         version: 3.7.0(react@18.3.1)
       ws:
-        specifier: ^8.18.0
+        specifier: ^8.18.2
         version: 8.18.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       zod:
         specifier: ^3.24.2

@@ -17,7 +17,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onReturnHome }: HeaderProps) {
-  const { connected, connecting, connectWallet, disconnectWallet, walletAddress, publicKey } = useWallet();
+  const { connected, connecting, connectWallet, disconnectWallet, formatedAddress } = useWallet();
   const [showDisconnect, setShowDisconnect] = useState(false);
   const [, navigate] = useLocation();
   
@@ -137,7 +137,7 @@ export default function Header({ onReturnHome }: HeaderProps) {
               {connecting ? (
                 "Connecting..."
               ) : connected ? (
-                walletAddress
+                formatedAddress
               ) : (
                 "Connect Wallet"
               )}

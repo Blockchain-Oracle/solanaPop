@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -18,25 +18,57 @@ import solanaPay from "./api/solana-pay";
 import whitelist from "./api/whitelist";
 import { checkWhitelistAccess } from "./storage";
 
+// Utility to wrap async route handlers and automatically catch/forward errors
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
+
+// Helper function to handle errors consistently
+const handleError = (error: unknown, res: Response) => {
+  // Log the error with its stack trace
+  console.error("API Error:", error);
+  
+  // Handle validation errors
+  if (error instanceof ZodError) {
+    const validationError = fromZodError(error);
+    return res.status(400).json({ 
+      error: "Validation failed", 
+      details: validationError.message 
+    });
+  }
+  
+  // Handle standard errors
+  if (error instanceof Error) {
+    const statusCode = error.message.includes('not found') ? 404 : 
+                      error.message.includes('Database error') ? 500 : 400;
+    
+    return res.status(statusCode).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+  
+  // Fallback for unknown errors
+  return res.status(500).json({ 
+    error: "An unexpected error occurred", 
+    details: String(error)
+  });
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Register Solana Pay and Whitelist routes
   app.use(solanaPay);
   app.use(whitelist);
 
   // API routes for token operations
-  app.post("/api/tokens", async (req: Request, res: Response) => {
-    try {
-      const tokenData = insertTokenSchema.parse(req.body);
-      const token = await storage.createToken(tokenData);
-      return res.status(201).json(token);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ error: validationError.message });
-      }
-      return res.status(500).json({ error: "Failed to create token" });
-    }
-  });
+  app.post("/api/tokens", asyncHandler(async (req: Request, res: Response) => {
+    console.log("Received token creation request:", req.body);
+    const tokenData = insertTokenSchema.parse(req.body);
+    const token = await storage.createToken(tokenData);
+    return res.status(201).json(token);
+  }));
 
   app.get("/api/tokens/:id", async (req: Request, res: Response) => {
     try {
@@ -52,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(token);
     } catch (error) {
-      return res.status(500).json({ error: "Failed to fetch token" });
+      return handleError(error, res);
     }
   });
 
@@ -66,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tokens = await storage.getTokensByCreator(creatorId);
       return res.json(tokens);
     } catch (error) {
-      return res.status(500).json({ error: "Failed to fetch tokens" });
+      return handleError(error, res);
     }
   });
 
@@ -77,12 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const event = await storage.createEvent(eventData);
       return res.status(201).json(event);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ error: validationError.message });
-      }
-      console.error("Error creating event:", error);
-      return res.status(500).json({ error: "Failed to create event" });
+      return handleError(error, res);
     }
   });
 
@@ -100,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(event);
     } catch (error) {
-      return res.status(500).json({ error: "Failed to fetch event" });
+      return handleError(error, res);
     }
   });
 
@@ -114,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const events = await storage.getEventsByCreator(creatorId);
       return res.json(events);
     } catch (error) {
-      return res.status(500).json({ error: "Failed to fetch events" });
+      return handleError(error, res);
     }
   });
 
@@ -137,8 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(updatedEvent);
     } catch (error) {
-      console.error("Error updating event:", error);
-      return res.status(500).json({ error: "Failed to update event" });
+      return handleError(error, res);
     }
   });
 
@@ -156,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json({ success: true, message: "Event deleted successfully" });
     } catch (error) {
-      return res.status(500).json({ error: "Failed to delete event" });
+      return handleError(error, res);
     }
   });
 
@@ -186,11 +212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const claim = await storage.createTokenClaim(claimData);
       return res.status(201).json(claim);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ error: validationError.message });
-      }
-      return res.status(500).json({ error: "Failed to create token claim" });
+      return handleError(error, res);
     }
   });
 
@@ -214,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(claimsWithTokens);
     } catch (error) {
-      return res.status(500).json({ error: "Failed to fetch token claims" });
+      return handleError(error, res);
     }
   });
   
@@ -266,8 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.json(formattedClaims);
     } catch (error) {
-      console.error("Error fetching claims with tokens:", error);
-      return res.status(500).json({ error: "Failed to fetch token claims with tokens" });
+      return handleError(error, res);
     }
   });
 
@@ -287,11 +308,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(userData);
       return res.status(201).json(user);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const validationError = fromZodError(error);
-        return res.status(400).json({ error: validationError.message });
+      return handleError(error, res);
+    }
+  });
+
+  app.get("/api/users/wallet/:walletAddress", async (req: Request, res: Response) => {
+    try {
+      const { walletAddress } = req.params;
+      if (!walletAddress) {
+        return res.status(400).json({ error: "Wallet address is required" });
       }
-      return res.status(500).json({ error: "Failed to create user" });
+      
+      const user = await storage.getUserByWalletAddress(walletAddress);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      return res.json(user);
+    } catch (error) {
+      return handleError(error, res);
     }
   });
 

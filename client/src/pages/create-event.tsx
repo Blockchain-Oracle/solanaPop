@@ -18,6 +18,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { CalendarIcon, ArrowLeft, Users, MapPin, Clock, Info, LayoutGrid, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 // Event creation form schema with validation
 const createEventSchema = z.object({
@@ -78,8 +82,9 @@ export default function CreateEvent() {
       try {
         // First get the user ID by wallet address
         const userResponse = await apiRequest("GET", `/api/users/wallet/${publicKey.toString()}`);
+        console.log(userResponse,"userResponse");
         const userData = await userResponse.json();
-        
+        console.log(userData,"userData");
         if (!userData || !userData.id) return [];
         
         // Then fetch tokens created by this user
@@ -207,62 +212,74 @@ export default function CreateEvent() {
                   )}
                 />
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Event Date</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              type="date" 
-                              className="bg-solana-darker/40 border-white/10" 
-                              value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
-                              onChange={(e) => {
-                                const date = e.target.value ? new Date(e.target.value) : undefined;
-                                field.onChange(date);
-                              }}
-                              min={new Date().toISOString().split('T')[0]}
-                            />
-                            <CalendarIcon className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="eventType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Event Type</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Event Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
                           <FormControl>
-                            <SelectTrigger className="bg-solana-darker/40 border-white/10">
-                              <SelectValue placeholder="Select event type" />
-                            </SelectTrigger>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "bg-solana-darker/40 border-white/10 w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Select event date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4" />
+                            </Button>
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="conference">Conference</SelectItem>
-                            <SelectItem value="workshop">Workshop</SelectItem>
-                            <SelectItem value="hackathon">Hackathon</SelectItem>
-                            <SelectItem value="meetup">Meetup</SelectItem>
-                            <SelectItem value="party">Party</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-solana-darker border-white/10" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            disabled={(date) => date < new Date()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="eventType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Event Type</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-solana-darker/40 border-white/10">
+                            <SelectValue placeholder="Select event type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="conference">Conference</SelectItem>
+                          <SelectItem value="workshop">Workshop</SelectItem>
+                          <SelectItem value="hackathon">Hackathon</SelectItem>
+                          <SelectItem value="meetup">Meetup</SelectItem>
+                          <SelectItem value="party">Party</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}

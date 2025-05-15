@@ -19,6 +19,7 @@ export const tokens = pgTable("tokens", {
   claimed: integer("claimed").default(0),
   expiryDate: timestamp("expiry_date"),
   creatorId: integer("creator_id").notNull(),
+  creatorAddress: text("creator_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   mintAddress: text("mint_address"),
   whitelistEnabled: boolean("whitelist_enabled").default(false),
@@ -120,22 +121,27 @@ export const insertUserSchema = createInsertSchema(users).pick({
   walletAddress: true,
 });
 
-export const insertTokenSchema = createInsertSchema(tokens).pick({
-  name: true,
-  symbol: true,
-  description: true,
-  supply: true,
-  expiryDate: true,
-  creatorId: true,
-  mintAddress: true,
-  whitelistEnabled: true,
-});
+export const insertTokenSchema = createInsertSchema(tokens)
+  .pick({
+    name: true,
+    symbol: true,
+    description: true,
+    supply: true,
+    creatorId: true,
+    creatorAddress: true,
+    mintAddress: true,
+    whitelistEnabled: true,
+  })
+  .extend({
+    // Accept either a Date object or an ISO string for expiryDate
+    expiryDate: z.union([z.date(), z.string()]).optional().transform(val => 
+      val ? (typeof val === 'string' ? new Date(val) : val) : undefined
+    ),
+  });
 
 export const insertEventSchema = createInsertSchema(events).pick({
   name: true,
   description: true,
-  date: true,
-  endDate: true,
   location: true,
   capacity: true,
   eventType: true,
@@ -144,6 +150,13 @@ export const insertEventSchema = createInsertSchema(events).pick({
   isPrivate: true,
   accessCode: true,
   whitelistEnabled: true,
+}).extend({
+  date: z.union([z.date(), z.string()]).transform(val => 
+    typeof val === 'string' ? new Date(val) : val
+  ),
+  endDate: z.union([z.date(), z.string()]).optional().transform(val => 
+    val ? (typeof val === 'string' ? new Date(val) : val) : undefined
+  ),
 });
 
 export const insertTokenClaimSchema = createInsertSchema(tokenClaims).pick({

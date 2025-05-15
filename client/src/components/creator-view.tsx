@@ -13,6 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, QrCode, Share } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface CreatorViewProps {
   onShowQR: (token: Token) => void;
@@ -59,11 +63,14 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
       const data = {
         ...tokenData,
         creatorId: 1,
-        // If we had a real mint, would add mintAddress here after creating it on Solana
+        // Format the date to ISO string if it exists
+        expiryDate: tokenData.expiryDate ? tokenData.expiryDate.toISOString() : undefined,
       };
       
       try {
+        console.log("Sending data:", data);
         const response = await apiRequest("POST", "/api/tokens", data);
+        console.log("Response:", response);
         return await response.json();
       } catch (error) {
         console.error("Error creating token:", error);
@@ -208,23 +215,37 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
                 control={form.control}
                 name="expiryDate"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Token Expiry</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input 
-                          type="date" 
-                          className="bg-solana-darker/40 border-white/10" 
-                          {...field}
-                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
-                          onChange={(e) => {
-                            const date = e.target.value ? new Date(e.target.value) : undefined;
-                            field.onChange(date);
-                          }}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "bg-solana-darker/40 border-white/10 w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-solana-darker border-white/10" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                          disabled={(date) => date < new Date()}
                         />
-                        <CalendarIcon className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </FormControl>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -196,7 +196,7 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
         <Button 
           variant="ghost" 
           className="mr-4 p-2"
-          onClick={() => navigate(`/token-detail/${token.id}`)}
+          onClick={() => navigate(`/token/${token.id}`)}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>

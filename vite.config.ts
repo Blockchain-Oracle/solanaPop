@@ -3,10 +3,14 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+// Determine if we're in a pure client context
+const isClientContext = !process.env.SERVER_CONTEXT;
+
 export default defineConfig({
   plugins: [
     react(),
-    runtimeErrorOverlay(),
+    // Only apply the error overlay in client contexts
+    ...(isClientContext ? [runtimeErrorOverlay()] : []),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

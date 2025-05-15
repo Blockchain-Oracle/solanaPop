@@ -311,6 +311,15 @@ export default function TokenDetail({ params }: TokenDetailProps) {
               
               <Button 
                 variant="outline" 
+                className="w-full bg-solana-darker/40 border-white/10 justify-start"
+                onClick={() => navigate(`/token/${token.id}/edit`)}
+              >
+                <QrCode className="mr-2 h-4 w-4" />
+                Edit Token
+              </Button>
+              
+              <Button 
+                variant="outline" 
                 className="w-full bg-solana-darker/40 border-white/10 justify-start opacity-50"
                 disabled
               >

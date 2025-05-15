@@ -17,6 +17,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { CalendarIcon, ArrowLeft, Rocket, Info, LayoutGrid } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 // Token creation form schema with extended validation
 const createTokenSchema = z.object({
@@ -76,6 +80,8 @@ export default function CreateToken() {
       const data = {
         ...tokenData,
         creatorId: 1,
+        // Format the date to ISO string if it exists
+        expiryDate: tokenData.expiryDate ? tokenData.expiryDate.toISOString() : undefined,
       };
       
       try {
@@ -263,24 +269,37 @@ export default function CreateToken() {
                     control={form.control}
                     name="expiryDate"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Token Expiry (Optional)</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              type="date" 
-                              className="bg-solana-darker/40 border-white/10" 
-                              {...field}
-                              value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
-                              onChange={(e) => {
-                                const date = e.target.value ? new Date(e.target.value) : undefined;
-                                field.onChange(date);
-                              }}
-                              min={new Date().toISOString().split('T')[0]}
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "bg-solana-darker/40 border-white/10 w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-solana-darker border-white/10" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                              disabled={(date) => date < new Date()}
                             />
-                            <CalendarIcon className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                          </div>
-                        </FormControl>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}

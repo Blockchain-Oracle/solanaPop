@@ -67,12 +67,43 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Token methods
-  async createToken(insertToken: InsertToken): Promise<Token> {
-    const [token] = await db.insert(tokens).values({
-      ...insertToken,
-      claimed: 0
-    }).returning();
-    return token;
+  async createToken(tokenData: InsertToken): Promise<Token> {
+    try {
+      // The schema transform should have already handled this,
+      // but let's make double sure
+      const dataToInsert = {
+        ...tokenData,
+        expiryDate: tokenData.expiryDate && typeof tokenData.expiryDate === 'string' 
+          ? new Date(tokenData.expiryDate) 
+          : tokenData.expiryDate
+      };
+
+      // Get the creator's wallet address if not provided
+      if (!dataToInsert.creatorAddress && dataToInsert.creatorId) {
+        const creator = await this.getUser(dataToInsert.creatorId);
+        if (creator && creator.walletAddress) {
+          dataToInsert.creatorAddress = creator.walletAddress;
+        }
+      }
+
+      console.log("Inserting token:", dataToInsert);
+      const [token] = await db.insert(tokens).values(dataToInsert).returning();
+      console.log("Token inserted:", token);
+      return token;
+    } catch (error) {
+      console.error("Error creating token:", error);
+      // Create a more specific error with context
+      const enhancedError = error instanceof Error 
+        ? new Error(`Database error creating token: ${error.message}`) 
+        : new Error(`Unknown error creating token: ${String(error)}`);
+      
+      // Preserve the original stack trace if possible
+      if (error instanceof Error && error.stack) {
+        enhancedError.stack = error.stack;
+      }
+      
+      throw enhancedError; // Re-throw the enhanced error
+    }
   }
 
   async getToken(id: number): Promise<Token | undefined> {
@@ -265,7 +296,16 @@ export async function hasUserClaimedToken(tokenId: number, walletAddress: string
     return !!existingClaim;
   } catch (error) {
     console.error('Error checking claim status:', error);
-    throw new Error('Failed to check if token has been claimed');
+    // Create a more specific error with context
+    const enhancedError = error instanceof Error 
+      ? new Error(`Database error checking token claim status: ${error.message}`) 
+      : new Error(`Unknown error checking token claim status: ${String(error)}`);
+    
+    if (error instanceof Error && error.stack) {
+      enhancedError.stack = error.stack;
+    }
+    
+    throw enhancedError;
   }
 }
 
@@ -284,6 +324,15 @@ export async function checkWhitelistAccess(tokenId: number | null, eventId: numb
     return false;
   } catch (error) {
     console.error('Error checking whitelist access:', error);
-    throw new Error('Failed to check whitelist access');
+    // Create a more specific error with context
+    const enhancedError = error instanceof Error 
+      ? new Error(`Database error checking whitelist access: ${error.message}`) 
+      : new Error(`Unknown error checking whitelist access: ${String(error)}`);
+    
+    if (error instanceof Error && error.stack) {
+      enhancedError.stack = error.stack;
+    }
+    
+    throw enhancedError;
   }
 }

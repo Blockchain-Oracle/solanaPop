@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
@@ -43,8 +43,12 @@ export default function EditTokenPage({ params }: EditTokenPageProps) {
   const { walletAddress, connected } = useWallet();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('details');
+  const [checkedWallet, setCheckedWallet] = useState(false);
+  const mountedRef = useRef(false);
   
-  const tokenId = params.id ? parseInt(params.id) : undefined;
+  // Ensure tokenId is properly parsed as a number
+  const tokenId = params && params.id ? parseInt(params.id, 10) : undefined;
+  console.log("Edit page - Token ID:", tokenId, "Connected:", connected, "Checked:", checkedWallet);
   
   // Fetch token details
   const { 
@@ -67,20 +71,59 @@ export default function EditTokenPage({ params }: EditTokenPageProps) {
     },
     enabled: !!tokenId && connected,
   });
+  console.log(token);
   
-  // Check if current user is the creator of the token
-  const isCreator = token ? walletAddress === token.creatorId : false;
+  // Check if current user is the creator of the token using wallet address
+  const isCreator = token ? walletAddress === token.creatorAddress : false;
+  console.log("Creator check:", { walletAddress, tokenCreatorAddress: token?.creatorAddress, isCreator });
+
+  // Handle component mounting flag
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   
-  // Redirect if not connected
-  if (!connected) {
-    toast({
-      title: "Wallet not connected",
-      description: "Please connect your wallet to edit tokens",
-      variant: "destructive",
-    });
-    navigate("/");
-    return null;
-  }
+  // Handle redirects with useEffect - only check connection once
+  useEffect(() => {
+    // Skip re-checking if we've already verified connection
+    if (checkedWallet) return;
+    
+    // Delay to ensure wallet has time to initialize
+    const timer = setTimeout(() => {
+      if (!mountedRef.current) return;
+      
+      console.log("Checking wallet connection:", connected);
+      
+      if (!connected) {
+        toast({
+          title: "Wallet not connected",
+          description: "Please connect your wallet to edit tokens",
+          variant: "destructive",
+        });
+        navigate("/");
+      } else {
+        // Only mark as checked if actually connected
+        setCheckedWallet(true);
+      }
+    }, 500); // Increased delay to ensure wallet state is ready
+    
+    return () => clearTimeout(timer);
+  }, [connected, navigate, toast, checkedWallet]);
+  
+  // Handle creator check with useEffect - only run when we have token data
+  useEffect(() => {
+    if (!token || isLoading || !checkedWallet) return;
+    
+    if (!isCreator) {
+      console.log("Creator check failed:", { walletAddress, creatorAddress: token.creatorAddress });
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to edit this token.",
+        variant: "destructive",
+      });
+      navigate(`/token/${tokenId}`);
+    }
+  }, [token, isLoading, isCreator, tokenId, navigate, toast, checkedWallet, walletAddress]);
   
   if (isLoading) {
     return (
@@ -132,17 +175,6 @@ export default function EditTokenPage({ params }: EditTokenPageProps) {
     );
   }
   
-  // Redirect if user is not token creator
-  if (!isCreator) {
-    toast({
-      title: "Access Denied",
-      description: "You do not have permission to edit this token.",
-      variant: "destructive",
-    });
-    navigate(`/token-detail/${tokenId}`);
-    return null;
-  }
-  
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Header onReturnHome={() => navigate("/")} />
@@ -152,7 +184,7 @@ export default function EditTokenPage({ params }: EditTokenPageProps) {
         <Button 
           variant="ghost" 
           className="mr-4 p-2"
-          onClick={() => navigate(`/token-detail/${token.id}`)}
+          onClick={() => navigate(`/token/${token.id}`)}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
