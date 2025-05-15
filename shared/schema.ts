@@ -21,6 +21,7 @@ export const tokens = pgTable("tokens", {
   creatorId: integer("creator_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   mintAddress: text("mint_address"),
+  whitelistEnabled: boolean("whitelist_enabled").default(false),
 });
 
 // New events table
@@ -39,6 +40,7 @@ export const events = pgTable("events", {
   accessCode: text("access_code"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  whitelistEnabled: boolean("whitelist_enabled").default(false),
 });
 
 export const tokenClaims = pgTable("token_claims", {
@@ -48,6 +50,15 @@ export const tokenClaims = pgTable("token_claims", {
   walletAddress: text("wallet_address").notNull(),
   claimedAt: timestamp("claimed_at").defaultNow().notNull(),
   transactionId: text("transaction_id"),
+});
+
+// Whitelist table
+export const whitelists = pgTable("whitelists", {
+  id: serial("id").primaryKey(),
+  tokenId: integer("token_id").references(() => tokens.id, { onDelete: 'cascade' }),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }),
+  walletAddress: text("wallet_address").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Define relations after all tables are defined to avoid circular dependencies
@@ -64,9 +75,10 @@ export const tokensRelations = relations(tokens, ({ one, many }) => ({
   }),
   claims: many(tokenClaims),
   events: many(events),
+  whitelists: many(whitelists, { relationName: "token_whitelists" }),
 }));
 
-export const eventsRelations = relations(events, ({ one }) => ({
+export const eventsRelations = relations(events, ({ one, many }) => ({
   creator: one(users, {
     fields: [events.creatorId],
     references: [users.id],
@@ -75,6 +87,7 @@ export const eventsRelations = relations(events, ({ one }) => ({
     fields: [events.tokenId],
     references: [tokens.id],
   }),
+  whitelists: many(whitelists, { relationName: "event_whitelists" }),
 }));
 
 export const tokenClaimsRelations = relations(tokenClaims, ({ one }) => ({
@@ -85,6 +98,19 @@ export const tokenClaimsRelations = relations(tokenClaims, ({ one }) => ({
   user: one(users, {
     fields: [tokenClaims.userId],
     references: [users.id],
+  }),
+}));
+
+export const whitelistsRelations = relations(whitelists, ({ one }) => ({
+  token: one(tokens, {
+    fields: [whitelists.tokenId],
+    references: [tokens.id],
+    relationName: "token_whitelists",
+  }),
+  event: one(events, {
+    fields: [whitelists.eventId],
+    references: [events.id],
+    relationName: "event_whitelists",
   }),
 }));
 
@@ -102,6 +128,7 @@ export const insertTokenSchema = createInsertSchema(tokens).pick({
   expiryDate: true,
   creatorId: true,
   mintAddress: true,
+  whitelistEnabled: true,
 });
 
 export const insertEventSchema = createInsertSchema(events).pick({
@@ -116,6 +143,7 @@ export const insertEventSchema = createInsertSchema(events).pick({
   tokenId: true,
   isPrivate: true,
   accessCode: true,
+  whitelistEnabled: true,
 });
 
 export const insertTokenClaimSchema = createInsertSchema(tokenClaims).pick({
@@ -123,6 +151,12 @@ export const insertTokenClaimSchema = createInsertSchema(tokenClaims).pick({
   userId: true,
   walletAddress: true,
   transactionId: true,
+});
+
+export const insertWhitelistSchema = createInsertSchema(whitelists).pick({
+  tokenId: true,
+  eventId: true,
+  walletAddress: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -136,3 +170,6 @@ export type Event = typeof events.$inferSelect;
 
 export type InsertTokenClaim = z.infer<typeof insertTokenClaimSchema>;
 export type TokenClaim = typeof tokenClaims.$inferSelect;
+
+export type InsertWhitelist = z.infer<typeof insertWhitelistSchema>;
+export type Whitelist = typeof whitelists.$inferSelect;

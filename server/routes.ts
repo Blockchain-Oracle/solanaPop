@@ -14,8 +14,15 @@ import {
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { eq } from "drizzle-orm";
+import solanaPay from "./api/solana-pay";
+import whitelist from "./api/whitelist";
+import { checkWhitelistAccess } from "./storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register Solana Pay and Whitelist routes
+  app.use(solanaPay);
+  app.use(whitelist);
+
   // API routes for token operations
   app.post("/api/tokens", async (req: Request, res: Response) => {
     try {
@@ -162,6 +169,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = await storage.getToken(claimData.tokenId);
       if (!token) {
         return res.status(404).json({ error: "Token not found" });
+      }
+      
+      // Check if user is whitelisted (if whitelist is enabled)
+      if (token.whitelistEnabled) {
+        const isWhitelisted = await storage.isAddressWhitelistedForToken(claimData.tokenId, claimData.walletAddress);
+        if (!isWhitelisted) {
+          return res.status(403).json({ 
+            error: "Not whitelisted", 
+            message: "Your wallet is not whitelisted for this token" 
+          });
+        }
       }
       
       // Create claim
