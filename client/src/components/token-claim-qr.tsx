@@ -5,9 +5,10 @@ import { Loader2, Download, RefreshCw, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { createTokenClaimQR, getQRCodeAsBase64, createReferenceFromTokenId } from '@/lib/solana-pay';
 import { useToast } from "@/hooks/use-toast";
-import { findReference } from '@solana/pay';
+import { findReference, validateTransfer } from '@solana/pay';
 import { Connection, PublicKey } from '@solana/web3.js';
 import confetti from 'canvas-confetti';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 // Helper component for QR success state
 const ClaimSuccess: React.FC<{ 
@@ -75,6 +76,13 @@ export const triggerClaimConfetti = () => {
   }
 };
 
+// We can get this from backend responses
+interface SolanaPayResponse {
+  transaction: string;
+  message: string;
+  reference?: string;
+}
+
 type TokenClaimQRProps = {
   tokenId: number;
   tokenName?: string;
@@ -82,6 +90,7 @@ type TokenClaimQRProps = {
   expiryMinutes?: number;
   refreshInterval?: number; // in seconds
   onSuccess?: (signature: string) => void;
+  hideTitle?: boolean;
 };
 
 export function TokenClaimQR({
@@ -90,121 +99,223 @@ export function TokenClaimQR({
   tokenSymbol = '',
   expiryMinutes = 30,
   refreshInterval = 0, // 0 means no auto-refresh
-  onSuccess
+  onSuccess,
+  hideTitle = false
 }: TokenClaimQRProps) {
-  const [qrTimestamp, setQrTimestamp] = useState(Date.now());
-  const [claimSuccess, setClaimSuccess] = useState(false);
-  const [signature, setSignature] = useState<string | null>(null);
   const { toast } = useToast();
+  const { wallet, publicKey, connected } = useWallet();
+  const [qrCodeSrc, setQrCodeSrc] = useState<string | null>(null);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [reference, setReference] = useState<string | null>(null);
+  const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   
-  // Get the base URL (protocol + host)
-  const baseUrl = typeof window !== 'undefined' 
-    ? `${window.location.protocol}//${window.location.host}`
-    : '';
+  // Create the reference from the token ID and wallet address
+  useEffect(() => {
+    if (isInitialized || !tokenId || !publicKey) return;
+    
+    try {
+      // Generate a deterministic reference for WebSocket monitoring
+      const referenceObj = createReferenceFromTokenId(tokenId, publicKey.toString());
+      setReference(referenceObj.referenceString);
+      setIsInitialized(true);
+      console.log("Set reference:", referenceObj.referenceString);
+    } catch (error) {
+      console.error("Error creating reference:", error);
+    }
+  }, [tokenId, publicKey, isInitialized]);
   
-  // Get the user's wallet address if available
-  const userWalletAddress = typeof window !== 'undefined' && window.solana?.publicKey 
-    ? window.solana.publicKey.toString() 
-    : '';
+  // Generate QR code when wallet is connected
+  useEffect(() => {
+    if (!connected || !publicKey || !tokenId) {
+      setQrCodeSrc(null);
+      return;
+    }
+    
+    async function generateQR() {
+      try {
+        setIsGeneratingQR(true);
+        const baseUrl = window.location.origin;
+        
+        // Use string tokenId for the API URL but parse it to number for the reference
+        const qrCode = createTokenClaimQR({
+          recipient: publicKey?.toString() || '',
+          tokenId: (tokenId),
+          baseUrl,
+          userWallet: publicKey?.toString() || '',
+        });
+        
+        const qrBase64 = await getQRCodeAsBase64(qrCode);
+        if (typeof qrBase64 === 'string') {
+          setQrCodeSrc(qrBase64);
+        }
+      } catch (error) {
+        console.error("Error generating QR code:", error);
+        toast({
+          title: "Error",
+          description: "Failed to generate QR code",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGeneratingQR(false);
+      }
+    }
+    
+    generateQR();
+  }, [connected, publicKey, tokenId, toast]);
   
-  // Generate QR code
-  const { data: qrCode, isLoading: isGeneratingQR, refetch } = useQuery({
-    queryKey: ['tokenQR', tokenId, qrTimestamp, userWalletAddress],
-    queryFn: async (): Promise<string | null> => {
-      if (!baseUrl) return null;
-      console.log(baseUrl);
-      const qr = createTokenClaimQR({
-        tokenId,
-        baseUrl,
-        label: `Claim ${tokenName} (${tokenSymbol})`,
-        message: `Scan to claim your ${tokenSymbol} token`,
-        userWallet: userWalletAddress // Pass user wallet for unique reference
+  // Set up WebSocket for transaction tracking
+  useEffect(() => {
+    if (!reference || !connected || claimSuccess) return;
+    
+    const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    const connection = new Connection(endpoint, 'confirmed');
+    
+    // Convert reference string back to PublicKey
+    let referenceKey: PublicKey;
+    try {
+      referenceKey = new PublicKey(reference);
+    } catch (error) {
+      console.error("Invalid reference key:", error);
+      return;
+    }
+    
+    console.log("Setting up WebSocket for reference:", referenceKey.toString());
+    
+    // Set up WebSocket subscription
+    const subscriptionId = connection.onAccountChange(
+      referenceKey,
+      (accountInfo, context) => {
+        console.log("Account change detected for reference:", context);
+        
+        // Query for transactions that include our reference
+        connection.getSignaturesForAddress(referenceKey, { limit: 10 })
+          .then(signatures => {
+            if (signatures.length > 0) {
+              // Get the most recent signature
+              const latestSignature = signatures[0];
+              console.log("Found transaction:", latestSignature.signature);
+              
+              // Trigger confirmation handler
+              handleTransactionConfirmed({
+                signature: latestSignature.signature
+              });
+            }
+          })
+          .catch(error => {
+            console.error("Error getting signatures:", error);
+          });
+      },
+      'confirmed'
+    );
+    
+    // Clean up subscription
+    return () => {
+      console.log("Cleaning up WebSocket subscription");
+      connection.removeAccountChangeListener(subscriptionId)
+        .catch(error => console.error("Error removing listener:", error));
+    };
+  }, [reference, connected, claimSuccess]);
+    
+  // Function to verify transaction on backend
+  const verifyTransactionOnBackend = async (signature: string) => {
+    try {
+      console.log("Verifying transaction with backend:", signature);
+      const response = await fetch('/api/solana-pay/token/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenId,
+          signature,
+        }),
       });
       
-      const base64 = await getQRCodeAsBase64(qr);
-      return base64 as string;
-    },
-    enabled: Boolean(baseUrl)
-  });
-  
-  // For monitoring transaction completion
-  const [isChecking, setIsChecking] = useState(false);
-  const [transactionRef, setTransactionRef] = useState<string | null>(null);
-  
-  // Create a reference for tracking when generating QR code
-  useEffect(() => {
-    if (qrCode) {
-      // Use consistent reference from tokenId and user wallet that matches the one in the QR code
-      const { referenceString } = createReferenceFromTokenId(tokenId, userWalletAddress);
-      setTransactionRef(referenceString);
+      if (!response.ok) {
+        console.error('Backend verification failed:', await response.text());
+        return { success: false };
+      }
+      
+      const data = await response.json();
+      
+      // Return both success state and token transfer data 
+      return { 
+        success: data.success,
+        transferSignature: data.signature, // Signature of the actual token transfer
+        explorerUrl: data.explorerUrl
+      };
+    } catch (error) {
+      console.error('Error verifying transaction with backend:', error);
+      return { success: false };
     }
-  }, [qrCode, tokenId, userWalletAddress]);
+  };
   
-  // Function to check for transaction completion
-  const checkForTransaction = useCallback(async () => {
-    if (!transactionRef || isChecking || claimSuccess) return;
+  // Handle transaction confirmed via WebSocket subscription
+  const handleTransactionConfirmed = useCallback(async (signatureInfo: { signature: string }) => {
+    if (claimSuccess) return;
     
     try {
       setIsChecking(true);
       
-      // Create connection to Solana network
+      // Create connection to Solana network to get transaction details
       const connection = new Connection(
         process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com'
       );
       
-      // Use Solana Pay's findReference to find the transaction
-      const referencePubkey = new PublicKey(transactionRef);
-      const signatureInfo = await findReference(connection, referencePubkey, { finality: 'confirmed' });
+      // Get the transaction details of the verification transaction (user-signed)
+      const transaction = await connection.getTransaction(signatureInfo.signature, {
+        commitment: 'confirmed',
+      });
       
-      if (signatureInfo) {
-        // Transaction is confirmed! No need to verify via backend
+      if (!transaction) {
+        console.error('Transaction not found despite WebSocket notification');
+        return;
+      }
+      
+      // Verify with backend and trigger the actual token transfer
+      const verificationResult = await verifyTransactionOnBackend(signatureInfo.signature);
+      
+      if (verificationResult.success) {
+        // Store the token transfer signature, not the verification signature
         setClaimSuccess(true);
-        setSignature(signatureInfo.signature);
+        setSignature(verificationResult.transferSignature || null);
         
         // Trigger confetti
         triggerClaimConfetti();
         
         toast({
           title: "Token claimed successfully",
-          description: "Your token has been successfully claimed.",
+          description: "Your token has been successfully claimed and transferred.",
         });
         
-        if (onSuccess) {
-          onSuccess(signatureInfo.signature);
+        if (onSuccess && verificationResult.transferSignature) {
+          onSuccess(verificationResult.transferSignature);
         }
       }
     } catch (error) {
-      // If findReference throws, the transaction isn't found yet
-      console.log("Transaction not found yet, polling...");
+      console.error("Error processing confirmed transaction:", error);
     } finally {
       setIsChecking(false);
     }
-  }, [transactionRef, isChecking, claimSuccess, toast, onSuccess]);
-  
-  // Poll for transaction completion
-  useEffect(() => {
-    if (!transactionRef || claimSuccess) return;
-    
-    const intervalId = setInterval(() => {
-      checkForTransaction();
-    }, 3000); // Check every 3 seconds
-    
-    return () => clearInterval(intervalId);
-  }, [transactionRef, checkForTransaction, claimSuccess]);
+  }, [claimSuccess, toast, onSuccess, tokenId]);
   
   // Handle manual refresh
   const handleRefresh = () => {
-    setQrTimestamp(Date.now());
+    setQrCodeSrc(null);
     setClaimSuccess(false);
     setSignature(null);
+    setReference(null);
   };
   
   // Handle download QR code
   const handleDownload = () => {
-    if (!qrCode) return;
+    if (!qrCodeSrc) return;
     
     const a = document.createElement('a');
-    a.href = qrCode as string;
+    a.href = qrCodeSrc as string;
     a.download = `token-claim-${tokenId}-${tokenSymbol || ''}.png`;
     document.body.appendChild(a);
     a.click();
@@ -213,7 +324,7 @@ export function TokenClaimQR({
   
   // Determine what to show in the QR code area
   const renderQRContent = (): React.ReactNode => {
-    if (isGeneratingQR) {
+    if (!qrCodeSrc) {
       return <QRLoading />;
     }
     
@@ -227,8 +338,8 @@ export function TokenClaimQR({
       );
     }
     
-    if (qrCode) {
-      return <QRDisplay qrCode={qrCode} tokenSymbol={tokenSymbol} />;
+    if (qrCodeSrc) {
+      return <QRDisplay qrCode={qrCodeSrc} tokenSymbol={tokenSymbol} />;
     }
     
     return <QRError />;
@@ -236,30 +347,32 @@ export function TokenClaimQR({
   
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Claim Token QR Code</CardTitle>
-        <CardDescription>
-          {claimSuccess 
-            ? `You've successfully claimed your ${tokenSymbol} token!` 
-            : `Scan this QR code with a Solana Pay compatible wallet to claim your token.`}
-          {!claimSuccess && refreshInterval > 0 && (
-            <span className="block text-xs mt-1">
-              QR code refreshes every {refreshInterval} seconds for security.
-            </span>
-          )}
-        </CardDescription>
-      </CardHeader>
+      {!hideTitle && (
+        <CardHeader>
+          <CardTitle>Claim Token QR Code</CardTitle>
+          <CardDescription>
+            {claimSuccess 
+              ? `You've successfully claimed your ${tokenSymbol} token!` 
+              : `Scan this QR code with a Solana Pay compatible wallet to claim your token.`}
+            {!claimSuccess && refreshInterval > 0 && (
+              <span className="block text-xs mt-1">
+                QR code refreshes every {refreshInterval} seconds for security.
+              </span>
+            )}
+          </CardDescription>
+        </CardHeader>
+      )}
       <CardContent className="flex justify-center">
         {renderQRContent()}
       </CardContent>
       <CardFooter className="flex justify-center space-x-2">
         {!claimSuccess && (
-          <Button variant="outline" onClick={handleRefresh} disabled={isGeneratingQR}>
+          <Button variant="outline" onClick={handleRefresh} disabled={!qrCodeSrc}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh QR
           </Button>
         )}
-        {qrCode && !claimSuccess && (
+        {qrCodeSrc && !claimSuccess && (
           <Button variant="outline" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
             Download

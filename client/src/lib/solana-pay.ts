@@ -19,21 +19,35 @@ export function createReferenceFromTokenId(
   tokenId: number, 
   userWallet: string
 ): { referenceKey: PublicKey, referenceString: string } {
-  // Create a reference buffer combining tokenId and userWallet if available
+  // Create a reference buffer with a consistent hash
   const reference = new Uint8Array(32);
   
-
-    // Create a combined identifier with tokenId and userWallet
-    const uniqueIdentifier = `${tokenId}-${userWallet}`;
-    const encodedData = new TextEncoder().encode(uniqueIdentifier);
-    // Take only the first 32 bytes or pad if shorter
-    reference.set(encodedData.slice(0, Math.min(encodedData.length, 32)));
+  // Create a deterministic identifier by hashing tokenId and userWallet
+  const uniqueIdentifier = `token:${tokenId}:wallet:${userWallet}`;
+  
+  // Use a simple hash function to create a deterministic reference
+  // This ensures the same reference is generated for the same tokenId and wallet
+  const hashBuffer = new TextEncoder().encode(uniqueIdentifier);
+  
+  // Apply simple hash by XORing the bytes repeatedly
+  let hash = 0;
+  for (let i = 0; i < hashBuffer.length; i++) {
+    hash = ((hash << 5) - hash) + hashBuffer[i];
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Convert the hash to a byte array
+  for (let i = 0; i < 32; i++) {
+    reference[i] = (hash >> (i * 8)) & 0xff;
+  }
   
   // Convert to PublicKey
   const referenceKey = new PublicKey(reference);
   
   // Also return as string for component state
   const referenceString = referenceKey.toString();
+  
+  console.log(`Generated reference for token ${tokenId} and wallet ${userWallet}:`, referenceString);
   
   return { referenceKey, referenceString };
 }
@@ -53,7 +67,6 @@ export function createTokenClaimQR(options: SolanaPayQROptions) {
       // This is for the "solana:<recipient>?..." format
       try {
         const recipientPublicKey = new PublicKey(recipient);
-       
         
         // Create a Solana Pay transfer URL
         url = encodeURL({
@@ -62,32 +75,30 @@ export function createTokenClaimQR(options: SolanaPayQROptions) {
           label: label || "Claim Token",
           message: message || `Scan to claim your token`,
         });
-        console.log(url,"url");
+        console.log("Created transfer URL with reference:", referencePublicKey.toString());
       } catch (error) {
         console.error("Error creating transfer request:", error);
         // Fall back to transaction request
         const apiUrl = new URL(`${baseUrl}/api/solana-pay/token/${tokenId}`);
-        console.log(apiUrl,"apiUrl");
         url = encodeURL({
           link: apiUrl,
           label: label || "Claim Token",
-          message: message || "Scan to claim your token"
+          message: message || "Scan to claim your token",
+          reference: [referencePublicKey] // Include reference in fallback
         });
-        console.log(url,"url");
+        console.log("Created fallback URL with reference:", referencePublicKey.toString());
       }
     } else {
       // Create a transaction request (interactive)
       // This is for the "solana:<link>" format
       const apiUrl = new URL(`${baseUrl}/api/solana-pay/token/${tokenId}`);
-      console.log(apiUrl,"apiUrl");
       url = encodeURL({
         link: apiUrl,
         label: label || "Claim Token",
         message: message || "Scan to claim your token",
-        reference: [referencePublicKey]
+        reference: [referencePublicKey] // Always include reference
       });
-      console.log(referencePublicKey,"referencePublicKey");
-      console.log(url,"url");
+      console.log("Created transaction request URL with reference:", referencePublicKey.toString());
     }
     
     // Generate QR code from the URL

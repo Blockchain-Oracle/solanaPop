@@ -147,66 +147,29 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
       });
     }
 
+    // Generate a consistent reference key for tracking this transaction
+    // This same reference will be used by the frontend to monitor transaction via WebSocket
     const referenceKey = createReferenceFromTokenId(tokenId, walletAddress.toString());
-    const serviceKeypair = getServiceKeypair();
     
-    // Create a transaction to transfer the token
+    // Create a simple verification transaction - NOT the actual token transfer
+    // This follows the Solana Pay pattern of having users sign a lightweight transaction
+    // The actual token transfer will happen in the verification endpoint
     const transaction = new Transaction();
     
-    // 1. Get token decimals
-    const tokenInfo = await connection.getParsedAccountInfo(new PublicKey(token.mintAddress));
-    let decimals = 0;
-    if (tokenInfo.value && 'parsed' in tokenInfo.value.data) {
-      decimals = (tokenInfo.value.data as ParsedAccountData).parsed.info.decimals || 0;
-    }
-
-    // 2. Get source token account (service wallet)
-    const sourceATA = await getAssociatedTokenAddress(
-      new PublicKey(token.mintAddress),
-      serviceKeypair.publicKey
-    );
-
-    // 3. Get destination token account (recipient wallet)
-    const destinationATA = await getAssociatedTokenAddress(
-      new PublicKey(token.mintAddress),
-      walletAddress
-    );
-
-    // 4. Check if destination ATA exists, if not create it
-    const destinationAccount = await connection.getAccountInfo(destinationATA);
-    if (!destinationAccount) {
-      // Import if not already imported: import { createAssociatedTokenAccountInstruction } from "@solana/spl-token";
-      const createAtaInstruction = createAssociatedTokenAccountInstruction(
-        walletAddress, // fee payer
-        destinationATA, // ATA address
-        walletAddress, // owner
-        new PublicKey(token.mintAddress) // mint
-      );
-      transaction.add(createAtaInstruction);
-    }
-
-    // 5. Add memo instruction
+    // Add a memo instruction for better on-chain visibility
     const memoInstruction = new TransactionInstruction({
       keys: [],
       programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'),
-      data: Buffer.from(`Claiming token ${token.symbol} #${tokenId}`, 'utf8')
+      data: Buffer.from(`Claiming ${token.symbol} token #${tokenId}`, 'utf8')
     });
     transaction.add(memoInstruction);
 
-    // 6. Add token transfer instruction
-    const transferAmount = 1 * Math.pow(10, decimals); // 1 token with correct decimals
-    const transferInstruction = createTransferInstruction(
-      sourceATA, // source
-      destinationATA, // destination
-      serviceKeypair.publicKey, // owner of source (service wallet)
-      transferAmount // amount with decimals
-    );
-    transaction.add(transferInstruction);
-
-    // 7. Add reference to the transaction for later verification
+    // Add reference to the transaction for later verification
+    // This reference is used by the frontend's WebSocket subscription to detect
+    // when this transaction completes
     const referenceInstruction = SystemProgram.transfer({
       fromPubkey: walletAddress,
-      toPubkey: walletAddress,
+      toPubkey: walletAddress, // Self-transfer of 0 lamports
       lamports: 0
     });
     referenceInstruction.keys.push({
@@ -216,15 +179,12 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
     });
     transaction.add(referenceInstruction);
 
-    // 8. Set the fee payer to the user's wallet
+    // Set the fee payer to the user's wallet
     transaction.feePayer = walletAddress;
 
-    // 9. Get a recent blockhash
+    // Get a recent blockhash
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
-
-    // 10. Partially sign the transaction with the service wallet
-    transaction.partialSign(serviceKeypair);
     
     // Serialize and return the unsigned transaction
     const serializedTransaction = transaction.serialize({
@@ -234,9 +194,11 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
     const base64Transaction = serializedTransaction.toString('base64');
     
     // Return the transaction according to Solana Pay spec
+    // Include the reference string for the frontend to track via WebSocket
     return res.status(200).json({
       transaction: base64Transaction,
-      message: `Claim your ${token.symbol} token!`
+      message: `Sign to claim your ${token.symbol} token!`,
+      reference: referenceKey.referenceString
     });
     
   } catch (error) {
@@ -245,53 +207,119 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
   }
 });
 
-// Verification endpoint
+// Verification endpoint - This is where we actually transfer the token after verifying the user's signature
 router.post('/api/solana-pay/token/verify', async (req, res) => {
   try {
     const { tokenId, signature } = req.body;
+
     if (!tokenId || !signature) {
-      return res.status(400).json({ error: "Missing required parameters" });
+      return res.status(400).json({ error: 'Missing tokenId or signature' });
     }
+
+    console.log(`Verifying transaction for token ${tokenId} with signature ${signature}`);
+
+    // Connect to the Solana network
+    const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com');
+
+    // Get transaction details
+    const transaction = await connection.getTransaction(signature, {
+      commitment: 'confirmed',
+    });
+
+    if (!transaction) {
+      return res.status(400).json({ error: 'Transaction not found' });
+    }
+
+    // Get the wallet address by looking for memo instruction or reference
+    const walletAddress = getWalletAddressFromTransaction(transaction, tokenId);
     
-    // Get token details
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Could not determine wallet address from transaction' });
+    }
+
+    console.log(`Verified transaction from wallet: ${walletAddress}`);
+
+    // Fetch token details
     const token = await storage.getToken(parseInt(tokenId));
     if (!token) {
-      return res.status(404).json({ error: "Token not found" });
+      return res.status(404).json({ error: 'Token not found' });
     }
-    
-    // Verify the transaction
-    const transaction = await connection.getTransaction(signature, {
-      commitment: 'confirmed'
-    });
-    
-    if (!transaction) {
-      return res.status(404).json({ error: "Transaction not found" });
+
+    // Check if user is whitelisted
+    const isWhitelisted = await storage.isAddressWhitelistedForToken(parseInt(tokenId), walletAddress);
+    if (!isWhitelisted) {
+      return res.status(403).json({ error: 'Wallet is not whitelisted for this token' });
     }
-    
-    // Get the wallet address from the transaction
-    const walletAddress = transaction.transaction.message.accountKeys[0].toString();
-    
-    // Now just create the claim and return success
-    const claim = await storage.createTokenClaim({
+
+    // Check if already claimed 
+    const alreadyClaimed = await hasUserClaimedToken(parseInt(tokenId), walletAddress);
+    if (alreadyClaimed) {
+      return res.status(409).json({ error: 'Token already claimed by this wallet' });
+    }
+
+    // Now that verification is complete, transfer the token to the user
+    const transferResult = await transferToken(
+      token.mintAddress,
+      walletAddress,
+      1  // Transfer 1 token with appropriate decimals
+    );
+
+    if (!transferResult.success) {
+      return res.status(500).json({ error: 'Token transfer failed', details: transferResult.error });
+    }
+
+    // Create claim in database
+    await storage.createTokenClaim({
       tokenId: parseInt(tokenId),
-      userId: 0,
-      walletAddress: walletAddress,
-      transactionId: signature
+      userId: 0, // Default userId since we might not have a user record
+      walletAddress,
+      transactionId: transferResult.signature,
+      reference: signature, // Store the original signature as reference
+      status: 'confirmed'
     });
-    
+
+    // Return success response with transfer signature
     return res.status(200).json({
       success: true,
-      signature: signature,
-      explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=${process.env.SOLANA_NETWORK || 'devnet'}`,
-      claim,
-      message: `Successfully claimed ${token.symbol} token!`
+      message: 'Token claimed successfully',
+      signature: transferResult.signature,
+      explorerUrl: `https://explorer.solana.com/tx/${transferResult.signature}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`
     });
-    
   } catch (error) {
-    console.error("Error in verification handler:", error);
-    return res.status(500).json({ error: "Server error" });
+    console.error('Error verifying transaction:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
   }
 });
+
+// Helper function to extract wallet address from transaction
+function getWalletAddressFromTransaction(transaction: any, tokenId: string): string | null {
+  try {
+    // Wallet address is the first account in the transaction
+    const walletPubkey = transaction.transaction.message.accountKeys[0];
+    const walletAddress = walletPubkey.toString();
+    
+    // Verify that the transaction contains a reference to this token
+    const reference = createReferenceFromTokenId(parseInt(tokenId), walletAddress);
+    
+    // Look for a transaction instruction that references our reference pubkey
+    const referenceExists = transaction.transaction.message.accountKeys.some((account: PublicKey) => 
+      account.toString() === reference.referenceKey.toString()
+    );
+    
+    if (!referenceExists) {
+      console.error('Reference not found in transaction');
+      return null;
+    }
+    
+    return walletAddress;
+  } catch (error) {
+    console.error('Error extracting wallet address from transaction:', error);
+    return null;
+  }
+}
 
 export default router; 
 
