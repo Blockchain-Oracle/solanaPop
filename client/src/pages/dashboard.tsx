@@ -56,7 +56,8 @@ export default function Dashboard() {
     queryFn: async () => {
       if (!userData?.id) return [];
       try {
-        const response = await apiRequest("GET", `/api/tokens/creator/${userData.id}`);
+        const response = await apiRequest("GET", `/api/tokens/?creatorId=${userData.id}`);
+        console.log(response,"creatorId");
         return await response.json();
       } catch (error) {
         console.error("Error fetching tokens:", error);

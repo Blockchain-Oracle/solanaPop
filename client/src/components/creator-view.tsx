@@ -50,7 +50,7 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
   
   // Get creator's tokens
   const { data: tokens, isLoading } = useQuery<Token[]>({
-    queryKey: ["/api/tokens/creator/1"], // Using hardcoded creatorId=1 for demo
+    queryKey: ["/api/tokens", { walletAddress }],
     enabled: connected, // Only fetch if wallet is connected
   });
   

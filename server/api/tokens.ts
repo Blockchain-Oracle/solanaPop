@@ -101,11 +101,13 @@ router.get('/api/tokens/:id', async (req, res) => {
 // Get all tokens
 router.get('/api/tokens', async (req, res) => {
   try {
-    const { creatorId } = req.query;
+    const { creatorId, walletAddress } = req.query;
     
     let tokens;
     if (creatorId) {
       tokens = await storage.getTokensByCreator(parseInt(creatorId as string));
+    } else if (walletAddress) {
+      tokens = await storage.getTokensByCreatorWallet(walletAddress as string);
     } else {
       tokens = await storage.getAllTokens();
     }

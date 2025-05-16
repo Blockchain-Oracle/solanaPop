@@ -284,6 +284,10 @@ export class DatabaseStorage implements IStorage {
       
     return result;
   }
+
+  async getTokensByCreatorWallet(walletAddress: string) {
+    return db.select().from(tokens).where(eq(tokens.creatorAddress, walletAddress));
+  }
 }
 
 export const storage = new DatabaseStorage();
