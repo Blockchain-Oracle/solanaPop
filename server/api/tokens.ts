@@ -41,7 +41,6 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       name,
       symbol,
       metadataResult.metadataUri || '',
-      creatorAddress, // Initially minted to creator
       parseInt(decimals) || 6,
       parseInt(supply) || 1000000
     );

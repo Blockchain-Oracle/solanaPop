@@ -1,7 +1,8 @@
-import { percentAmount, signerIdentity, createSignerFromKeypair, generateSigner, publicKey } from '@metaplex-foundation/umi';
+import { percentAmount, signerIdentity, createSignerFromKeypair, generateSigner } from '@metaplex-foundation/umi';
 import { TokenStandard, createAndMint, mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { getServiceKeypair } from './keys-service';
+import { PublicKey } from '@solana/web3.js';
 
 /**
  * Creates a new token on the Solana blockchain using the service wallet
@@ -10,7 +11,6 @@ export async function createToken(
   name: string,
   symbol: string,
   metadataUri: string,
-  recipientAddress: string,
   decimals = 6,
   amount = 1000000 // Default supply
 ): Promise<{
@@ -48,8 +48,7 @@ export async function createToken(
       sellerFeeBasisPoints: percentAmount(0),
       decimals: decimals,
       amount: amount * Math.pow(10, decimals),
-      // Convert recipient address string to a proper UMI PublicKey
-      tokenOwner: publicKey(recipientAddress),
+      tokenOwner: umi.payer.publicKey,
       tokenStandard: TokenStandard.Fungible,
     }).sendAndConfirm(umi);
     
