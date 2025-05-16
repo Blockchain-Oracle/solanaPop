@@ -66,6 +66,7 @@ function verifySignedQrPayload(signedPayload: string): {
 const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com', 'confirmed');
 
 // GET handler - This gets called when a wallet scans the QR code
+// Following Solana Pay Transaction Request specification
 router.get('/api/solana-pay/token/:id', async (req, res) => {
   try {
     const tokenId = parseInt(req.params.id);
@@ -79,10 +80,10 @@ router.get('/api/solana-pay/token/:id', async (req, res) => {
       return res.status(404).json({ error: "Token not found" });
     }
     
-    // Return label and icon for the wallet UI
+    // Return label and icon according to Solana Pay specification
     return res.status(200).json({
       label: `Claim ${token.name} (${token.symbol})`,
-      icon: "https://yourdomain.com/logo.png" // Replace with your logo URL
+      icon: `${req.protocol}://${req.get('host')}/logo.png` // Should point to your app logo
     });
   } catch (error) {
     console.error("Error in GET handler:", error);
@@ -104,7 +105,12 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
       return res.status(400).json({ error: "Missing required parameter: account" });
     }
     
-    const walletAddress = new PublicKey(account);
+    let walletAddress;
+    try {
+      walletAddress = new PublicKey(account);
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid wallet address" });
+    }
     
     // Get token details
     const token = await storage.getToken(tokenId);
@@ -114,7 +120,10 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
     
     // Check if user is whitelisted (if whitelist is enabled)
     if (token.whitelistEnabled) {
+      console.log(token.whitelistEnabled,"token.whitelistEnabled");
+      console.log(walletAddress.toString(),"walletAddress");
       const isWhitelisted = await storage.isAddressWhitelistedForToken(tokenId, walletAddress.toString());
+      console.log(isWhitelisted,"isWhitelisted");
       if (!isWhitelisted) {
         return res.status(403).json({ 
           error: "Not whitelisted", 
@@ -163,14 +172,14 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
       })
     );
     
-    // Serialize transaction
+    // Serialize transaction according to Solana Pay specification
     const serializedTransaction = transaction.serialize({
       requireAllSignatures: false,
     });
     
     const base64Transaction = serializedTransaction.toString('base64');
-    
-    // Return transaction for signing
+//call /api/solana-pay/verify in here
+    // Return transaction for signing - must include the transaction field as specified
     return res.status(200).json({
       transaction: base64Transaction,
       message: `Claim your ${token.symbol} token!`
@@ -213,3 +222,21 @@ router.post('/api/solana-pay/verify', async (req, res) => {
 });
 
 export default router; 
+
+
+
+
+// 1. there are some changes we be using our own specific privatekey (to allow us to send transaction)
+
+
+// 2. so we can sign trasaction when user wants to create token we create token for them on chain using our own privatekey
+
+// 3. you can optionaly take image thiw will be added with token uri meaning you have to impelment service that upload the token metdata and get the uri (that will be a seperate service)
+
+// 4. so when user scans qrcode since its our private key , we can send them token
+
+// 5. eventshow case page ? 
+
+// 6. make sure to use compressed tokens @Zstandard 
+
+

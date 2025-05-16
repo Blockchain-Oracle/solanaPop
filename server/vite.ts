@@ -23,7 +23,7 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: ['happy-viper-factual.ngrok-free.app', 'localhost', '.ngrok-free.app'],
   };
 
   const vite = await createViteServer({
@@ -38,7 +38,6 @@ export async function setupVite(app: Express, server: Server) {
     },
     server: {
       ...serverOptions,
-      allowedHosts: undefined,
     },
     appType: "custom",
   });

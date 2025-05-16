@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { X, Download, Share2 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Token } from "@shared/schema";
+import { encodeURL } from "@solana/pay";
+import { PublicKey } from "@solana/web3.js";
 
 interface QRCodeModalProps {
   token: Token;
@@ -10,9 +12,54 @@ interface QRCodeModalProps {
 }
 
 export function QRCodeModal({ token, onClose }: QRCodeModalProps) {
-  // Generate token QR code value
-  // In a real app, this would encode the token ID and other data
-  const qrValue = `solanapop://token/${token.id}/${token.symbol}`;
+  // Generate Solana Pay URL according to specification
+  const qrValue = (() => {
+    try {
+      // // If there's a recipient wallet address for the token, we can create a transfer request
+      // if (token.creatorAddress) {
+      //   const recipient = new PublicKey(token.creatorAddress);
+      //   // Create a reference to track this specific request
+      //   const reference = new Uint8Array(32);
+      //   // Use token.id as a reference for this transaction
+      //   reference.set(Buffer.from(token.id.toString().padStart(32, '0')));
+        
+      //   // Convert to PublicKey and put in array
+      //   const referencePublicKey = new PublicKey(reference);
+        
+      //   // Create a proper Solana Pay transfer URL
+      //   return encodeURL({
+      //     recipient,
+      //     reference: [referencePublicKey], // Array of PublicKeys
+      //     label: token.name,
+      //     message: `Claim your ${token.symbol} token`
+      //   }).toString();
+      // } 
+      
+      // Alternatively, use transaction request format pointing to your backend
+      // const generateQr = async () => {
+      //   const apiUrl = `${window.location.protocol}/${window.location.host}/api/pay`;
+      //   const label = 'label';
+      //   const message = 'message';
+      //   const url = encodeURL({ link: new URL(apiUrl), label, message });
+      //   const qr = createQR(url);
+      //   const qrBlob = await qr.getRawData('png');
+      //   if (!qrBlob) return;
+      //   const reader = new FileReader();
+      //   reader.onload = (event) => {
+      //     if (typeof event.target?.result === 'string') {
+      //       setQrCode(event.target.result);
+      //     }
+      //   };
+      //   reader.readAsDataURL(qrBlob);
+      // }
+      const apiUrl = `${window.location.protocol}/${window.location.host}/api/solana-pay/token/${token.id}`
+      console.log(apiUrl);
+     return encodeURL({ link: new URL(apiUrl), label: token.name, message: `Claim your ${token.symbol} token` }).toString();
+    } catch (error) {
+      console.error("Error creating Solana Pay URL:", error);
+      return `solana:${window.location.origin}/api/solana-pay/token/${token.id}`;
+    }
+  })();
   
   // Handle download QR code
   const handleDownload = () => {
@@ -84,7 +131,7 @@ export function QRCodeModal({ token, onClose }: QRCodeModalProps) {
         </div>
         
         <div className="text-center">
-          <p className="text-sm text-white/70 mb-4">Attendees can scan this QR code to claim their participation token</p>
+          <p className="text-sm text-white/70 mb-4">Scan this QR code with a Solana Pay compatible wallet to claim your token</p>
           
           <div className="flex gap-3">
             <Button 

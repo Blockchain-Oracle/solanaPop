@@ -134,6 +134,9 @@ importers:
       '@zxing/library':
         specifier: ^0.21.3
         version: 0.21.3
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -191,6 +194,9 @@ importers:
       pg:
         specifier: ^8.16.0
         version: 8.16.0
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -246,6 +252,9 @@ importers:
         specifier: ^3.4.0
         version: 3.4.1(zod@3.24.4)
     devDependencies:
+      '@esbuild-plugins/node-globals-polyfill':
+        specifier: ^0.2.3
+        version: 0.2.3(esbuild@0.25.4)
       '@replit/vite-plugin-cartographer':
         specifier: ^0.1.2
         version: 0.1.2
@@ -303,6 +312,9 @@ importers:
       postcss:
         specifier: ^8.4.47
         version: 8.5.3
+      rollup-plugin-node-polyfills:
+        specifier: ^0.2.1
+        version: 0.2.1
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.17
@@ -511,6 +523,11 @@ packages:
   '@esbuild-kit/esm-loader@2.6.5':
     resolution: {integrity: sha512-FxEMIkJKnodyA1OaCUoEvbYRkoZlLZ4d/eXFu9Fh8CbBBgP5EmZxrfTRyN0qpXZ4vOvqnE5YdRdcrmUUXuU+dA==}
     deprecated: 'Merged into tsx: https://tsx.is'
+
+  '@esbuild-plugins/node-globals-polyfill@0.2.3':
+    resolution: {integrity: sha512-r3MIryXDeXDOZh7ih1l/yE9ZLORCd5e8vWg02azWRGj5SPTuoh69A2AIyn0Z31V/kHBfZ4HgWJ+OK3GTTwLmnw==}
+    peerDependencies:
+      esbuild: '*'
 
   '@esbuild/aix-ppc64@0.19.12':
     resolution: {integrity: sha512-bmoCYyWdEL3wDQIVbcyzRyeKLgk2WtWLTWz1ZIAZF/EGbNOwSA6ew3PftJ1PqMiOOGu0OyFMzG53L0zqIpPeNA==}
@@ -4397,6 +4414,9 @@ packages:
     engines: {node: '>=4'}
     hasBin: true
 
+  estree-walker@0.6.1:
+    resolution: {integrity: sha512-SqmZANLWS0mnatqbSfRP5g8OXZC12Fgg1IwNtLsyHDzJizORW4khDfjPqJZsemPWBB2uqykUah5YpQ6epsqC/w==}
+
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
 
@@ -5090,6 +5110,9 @@ packages:
     resolution: {integrity: sha512-kL+RGZCcJi9BvJtzg2kshO192Ddy9hv3ij+cPrVPWSRzgCWCVazoQJxOjAwgK53NomL07HB7GPHW120FimjNhQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+
+  magic-string@0.25.9:
+    resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
 
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
@@ -5966,6 +5989,16 @@ packages:
     resolution: {integrity: sha512-b5rfL2EZiffmklqZk1W+dvSy97v3V/C7936WxCCgDynaGPp7GE6R2XO7EU9O2LlM/z95rj870IylYnOQs+1Rag==}
     engines: {node: '>= 16'}
 
+  rollup-plugin-inject@3.0.2:
+    resolution: {integrity: sha512-ptg9PQwzs3orn4jkgXJ74bfs5vYz1NCZlSQMBUA0wKcGp5i5pA1AO3fOUEte8enhGUC+iapTCzEWw2jEFFUO/w==}
+    deprecated: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-inject.
+
+  rollup-plugin-node-polyfills@0.2.1:
+    resolution: {integrity: sha512-4kCrKPTJ6sK4/gLL/U5QzVT8cxJcofO0OU74tnB19F40cmuAKSzH5/siithxlofFEjwvw1YAhPmbvGNA6jEroA==}
+
+  rollup-pluginutils@2.8.2:
+    resolution: {integrity: sha512-EEp9NhnUkwY8aif6bxgovPHMoMoNr2FulJziTndpt5H9RdwC47GSGuII9XxpSdzVGM0GWrNPHV6ie1LTNJPaLQ==}
+
   rollup@2.79.2:
     resolution: {integrity: sha512-fS6iqSPZDs3dr/y7Od6y5nha8dW1YnbgtsyotCVvoFGKbERG++CVRFv1meyGDE1SNItQA8BrnCw7ScdAhRJ3XQ==}
     engines: {node: '>=10.0.0'}
@@ -6144,6 +6177,10 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+
+  sourcemap-codec@1.4.8:
+    resolution: {integrity: sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==}
+    deprecated: Please use @jridgewell/sourcemap-codec instead
 
   split-on-first@1.1.0:
     resolution: {integrity: sha512-43ZssAJaMusuKWL8sKUBQXHWOpq8d6CfN/u1p4gUzfJkM05C8rxTmYrkIPTXapZpORA6LkkzcUulJ8FqA7Uudw==}
@@ -7089,6 +7126,10 @@ snapshots:
     dependencies:
       '@esbuild-kit/core-utils': 3.3.2
       get-tsconfig: 4.10.0
+
+  '@esbuild-plugins/node-globals-polyfill@0.2.3(esbuild@0.25.4)':
+    dependencies:
+      esbuild: 0.25.4
 
   '@esbuild/aix-ppc64@0.19.12':
     optional: true
@@ -12137,6 +12178,8 @@ snapshots:
 
   esprima@4.0.1: {}
 
+  estree-walker@0.6.1: {}
+
   estree-walker@3.0.3:
     dependencies:
       '@types/estree': 1.0.7
@@ -12887,6 +12930,10 @@ snapshots:
   lucide-react@0.453.0(react@18.3.1):
     dependencies:
       react: 18.3.1
+
+  magic-string@0.25.9:
+    dependencies:
+      sourcemap-codec: 1.4.8
 
   magic-string@0.30.17:
     dependencies:
@@ -13926,6 +13973,20 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  rollup-plugin-inject@3.0.2:
+    dependencies:
+      estree-walker: 0.6.1
+      magic-string: 0.25.9
+      rollup-pluginutils: 2.8.2
+
+  rollup-plugin-node-polyfills@0.2.1:
+    dependencies:
+      rollup-plugin-inject: 3.0.2
+
+  rollup-pluginutils@2.8.2:
+    dependencies:
+      estree-walker: 0.6.1
+
   rollup@2.79.2:
     optionalDependencies:
       fsevents: 2.3.3
@@ -14161,6 +14222,8 @@ snapshots:
   source-map@0.5.7: {}
 
   source-map@0.6.1: {}
+
+  sourcemap-codec@1.4.8: {}
 
   split-on-first@1.1.0: {}
 

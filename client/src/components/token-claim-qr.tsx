@@ -32,7 +32,7 @@ export function TokenClaimQR({
     queryKey: ['tokenQR', tokenId, qrTimestamp],
     queryFn: async () => {
       if (!baseUrl) return null;
-      
+      console.log(baseUrl);
       const qr = createTokenClaimQR({
         tokenId,
         baseUrl,
