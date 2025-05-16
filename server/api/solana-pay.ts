@@ -3,6 +3,8 @@ import { Connection, PublicKey, Keypair, Transaction, SystemProgram, Transaction
 import crypto from 'crypto';
 import { storage } from '../storage';
 import { hasUserClaimedToken } from '../storage';
+import { transferToken } from '../services/transfer-service';
+import { getServiceKeypair } from '../services/keys-service';
 
 const router = express.Router();
 
@@ -118,12 +120,13 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
       return res.status(404).json({ error: "Token not found" });
     }
     
+    if (!token.mintAddress) {
+      return res.status(400).json({ error: "Token has no mint address" });
+    }
+    
     // Check if user is whitelisted (if whitelist is enabled)
     if (token.whitelistEnabled) {
-      console.log(token.whitelistEnabled,"token.whitelistEnabled");
-      console.log(walletAddress.toString(),"walletAddress");
       const isWhitelisted = await storage.isAddressWhitelistedForToken(tokenId, walletAddress.toString());
-      console.log(isWhitelisted,"isWhitelisted");
       if (!isWhitelisted) {
         return res.status(403).json({ 
           error: "Not whitelisted", 
@@ -153,16 +156,6 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
       lastValidBlockHeight,
     });
     
-    // If you have a token mint address, you'd add a token transfer instruction here
-    // For now, we'll use a simple system instruction as a placeholder
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: walletAddress,
-        toPubkey: walletAddress, // Self-transfer as a placeholder
-        lamports: 0, // 0 SOL
-      })
-    );
-    
     // Add reference to transaction for tracking
     transaction.add(
       new TransactionInstruction({
@@ -178,8 +171,7 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
     });
     
     const base64Transaction = serializedTransaction.toString('base64');
-//call /api/solana-pay/verify in here
-    // Return transaction for signing - must include the transaction field as specified
+    
     return res.status(200).json({
       transaction: base64Transaction,
       message: `Claim your ${token.symbol} token!`
@@ -206,15 +198,41 @@ router.post('/api/solana-pay/verify', async (req, res) => {
       return res.status(400).json({ error: "Invalid transaction" });
     }
     
+    // Get token details
+    const token = await storage.getToken(parseInt(tokenId));
+    if (!token) {
+      return res.status(404).json({ error: "Token not found" });
+    }
+    
+    if (!token.mintAddress) {
+      return res.status(400).json({ error: "Token has no mint address" });
+    }
+    
+    // Transfer tokens from service wallet to the user's wallet
+    const transferResult = await transferToken(
+      token.mintAddress,
+      walletAddress,
+      1 // Transfer 1 token (claiming)
+    );
+    
+    if (!transferResult.success) {
+      return res.status(500).json({ error: transferResult.error || "Failed to transfer token" });
+    }
+    
     // Create token claim in database
     const claim = await storage.createTokenClaim({
       tokenId: parseInt(tokenId),
       userId: 0, // System user or derive from wallet
       walletAddress,
-      transactionId: signature
+      transactionId: transferResult.signature || signature
     });
     
-    return res.status(200).json({ success: true, claim });
+    return res.status(200).json({ 
+      success: true, 
+      claim,
+      signature: transferResult.signature,
+      explorerUrl: transferResult.explorerUrl
+    });
   } catch (error) {
     console.error("Error verifying transaction:", error);
     return res.status(500).json({ error: "Failed to verify transaction" });
@@ -224,19 +242,13 @@ router.post('/api/solana-pay/verify', async (req, res) => {
 export default router; 
 
 
+// 1. fix the routing and add good header for it @App.tsx 
 
+// 2. this page is not been routed @claim.tsx this is routed insread @claim.tsx this is wrong infact delete the @claim.tsx 
 
-// 1. there are some changes we be using our own specific privatekey (to allow us to send transaction)
+// 3. the qr code should be consistent this qrcode in here @token-claim-qr.tsx should be the one used every where
 
+// 4.after the trasaction is successfull in post('/api/solana-pay/token/:id  i need to call 
 
-// 2. so we can sign trasaction when user wants to create token we create token for them on chain using our own privatekey
-
-// 3. you can optionaly take image thiw will be added with token uri meaning you have to impelment service that upload the token metdata and get the uri (that will be a seperate service)
-
-// 4. so when user scans qrcode since its our private key , we can send them token
-
-// 5. eventshow case page ? 
-
-// 6. make sure to use compressed tokens @Zstandard 
-
+// router.post('/api/solana-pay/verify'
 

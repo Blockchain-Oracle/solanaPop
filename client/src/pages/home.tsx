@@ -201,13 +201,6 @@ export default function Home() {
           onClose={() => setShowQRModal(false)} 
         />
       )}
-      
-      {showTransactionModal && selectedToken && (
-        <TransactionModal 
-          token={selectedToken} 
-          onClose={() => setShowTransactionModal(false)} 
-        />
-      )}
     </div>
   );
 }

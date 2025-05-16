@@ -22,6 +22,7 @@ export const tokens = pgTable("tokens", {
   creatorAddress: text("creator_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   mintAddress: text("mint_address"),
+  metadataUri: text("metadata_uri"),
   whitelistEnabled: boolean("whitelist_enabled").default(false),
 });
 
@@ -51,6 +52,8 @@ export const tokenClaims = pgTable("token_claims", {
   walletAddress: text("wallet_address").notNull(),
   claimedAt: timestamp("claimed_at").defaultNow().notNull(),
   transactionId: text("transaction_id"),
+  reference: text("reference"),
+  status: text("status").default('pending').notNull(),
 });
 
 // Whitelist table
@@ -130,6 +133,7 @@ export const insertTokenSchema = createInsertSchema(tokens)
     creatorId: true,
     creatorAddress: true,
     mintAddress: true,
+    metadataUri: true,
     whitelistEnabled: true,
   })
   .extend({
@@ -164,6 +168,8 @@ export const insertTokenClaimSchema = createInsertSchema(tokenClaims).pick({
   userId: true,
   walletAddress: true,
   transactionId: true,
+  reference: true,
+  status: true,
 });
 
 export const insertWhitelistSchema = createInsertSchema(whitelists).pick({

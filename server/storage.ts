@@ -19,6 +19,7 @@ export interface IStorage {
   createToken(token: InsertToken): Promise<Token>;
   getToken(id: number): Promise<Token | undefined>;
   getTokensByCreator(creatorId: number): Promise<Token[]>;
+  getAllTokens(): Promise<Token[]>;
   updateTokenClaimed(id: number): Promise<Token | undefined>;
   updateToken(id: number, updateData: Partial<InsertToken>): Promise<Token | undefined>;
   
@@ -113,6 +114,10 @@ export class DatabaseStorage implements IStorage {
 
   async getTokensByCreator(creatorId: number): Promise<Token[]> {
     return await db.select().from(tokens).where(eq(tokens.creatorId, creatorId));
+  }
+  
+  async getAllTokens(): Promise<Token[]> {
+    return await db.select().from(tokens);
   }
 
   async updateTokenClaimed(id: number): Promise<Token | undefined> {

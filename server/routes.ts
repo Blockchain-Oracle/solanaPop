@@ -16,6 +16,7 @@ import { fromZodError } from "zod-validation-error";
 import { eq } from "drizzle-orm";
 import solanaPay from "./api/solana-pay";
 import whitelist from "./api/whitelist";
+import tokensAPI from "./api/tokens";
 import { checkWhitelistAccess } from "./storage";
 
 // Utility to wrap async route handlers and automatically catch/forward errors
@@ -58,9 +59,13 @@ const handleError = (error: unknown, res: Response) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Register Solana Pay and Whitelist routes
+  // Register API routes
   app.use(solanaPay);
   app.use(whitelist);
+  app.use(tokensAPI);
+
+  // The following routes will be kept as fallbacks for backward compatibility
+  // Note: New token operations should use the modular API routes from tokensAPI
 
   // API routes for token operations
   app.post("/api/tokens", asyncHandler(async (req: Request, res: Response) => {
@@ -268,6 +273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           creatorId: number;
           createdAt: Date;
           mintAddress: string | null;
+          metadataUri: string | null;
         };
       };
       

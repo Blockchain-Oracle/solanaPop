@@ -10,6 +10,7 @@ A web-based platform for minting and distributing Proof-of-Participation tokens 
 - **QR Code Generation**: Easily distribute tokens via shareable QR codes
 - **Attendee Interface**: Claim tokens by scanning QR codes
 - **Solana Integration**: Built on Solana blockchain for security and transparency
+- **IPFS Storage**: Store token metadata and images on IPFS via Pinata
 - **Database Storage**: PostgreSQL database for reliable data persistence
 - **Modern UI**: Sleek, responsive interface with Solana-inspired design
 
@@ -35,6 +36,7 @@ Try the live demo at [solanapop.replit.app](https://solanapop.replit.app)
 - Node.js (v18+)
 - PostgreSQL database
 - Phantom Wallet (for Solana integration)
+- Pinata account (for IPFS storage)
 
 ### Setup
 
@@ -48,30 +50,49 @@ cd solana-pop
 2. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 3. Set up environment variables:
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env.local` file in the root directory with the following variables:
 
 ```
+# Database
 DATABASE_URL=postgresql://username:password@localhost:5432/solanapop
+
+# Pinata IPFS Storage
+PINATA_JWT=your_pinata_jwt_here
+PINATA_GATEWAY_URL=your_gateway_domain.mypinata.cloud
+NEXT_PUBLIC_PINATA_JWT=your_pinata_jwt_here
+NEXT_PUBLIC_PINATA_GATEWAY_URL=your_gateway_domain.mypinata.cloud
+
+# Solana Configuration
+NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
+NEXT_PUBLIC_SOLANA_NETWORK=devnet
+SERVICE_PRIVATE_KEY=[your_service_wallet_private_key]
 ```
 
-4. Push database schema:
+4. Pinata Setup:
+
+   - Create a free account at [pinata.cloud](https://www.pinata.cloud/)
+   - Go to the API Keys section and create a new key
+   - Copy your JWT token to the environment variables above
+   - Copy your Gateway URL (format: `your-gateway-name.mypinata.cloud`)
+
+5. Push database schema:
 
 ```bash
-npm run db:push
+pnpm run db:push
 ```
 
-5. Start the development server:
+6. Start the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
-6. Open your browser and navigate to `http://localhost:5000`
+7. Open your browser and navigate to `http://localhost:5000`
 
 ## 🔍 Usage
 
@@ -79,7 +100,9 @@ npm run dev
 
 1. Connect your Phantom wallet
 2. Select "Event Creators" from the homepage
-3. Create a new token by filling out the form
+3. Create a new token by filling out the form and uploading an image
+   - The image will be stored on IPFS via Pinata
+   - Token metadata will be stored on IPFS via Pinata
 4. Generate and share the QR code for attendees to scan
 
 ### For Event Attendees
@@ -110,9 +133,14 @@ For more detailed instructions, see the [User Guide](documentation/USER_GUIDE.md
 - Drizzle ORM
 - PostgreSQL (via Neon serverless)
 
+### Storage
+- IPFS (via Pinata)
+- PostgreSQL (metadata references)
+
 ### Blockchain
 - Solana Web3.js
 - Solana SPL Token
+- Metaplex Token Metadata
 
 ## 📁 Project Structure
 

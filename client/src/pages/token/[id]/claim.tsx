@@ -15,6 +15,8 @@ import { Loader2, ExternalLink, AlertCircle, InfoIcon, ArrowLeft } from 'lucide-
 import Header from '@/components/header';
 import Footer from '@/components/footer';
 import { useLocation } from 'wouter';
+import { TransactionModal } from "@/components/transaction-modal";
+import { queryClient } from '@/lib/queryClient';
 
 interface TokenClaimPageProps {
   params: {
@@ -27,6 +29,8 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
   const { walletAddress, connected } = useWallet();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('claim');
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [claimSignature, setClaimSignature] = useState<string | null>(null);
   
   const tokenId = params.id ? parseInt(params.id) : undefined;
   
@@ -124,6 +128,20 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
     walletAddress &&
     (!token?.whitelistEnabled || whitelistStatus?.isWhitelisted) && 
     !claimStatus?.claimed;
+  
+  // Add this function to handle successful claims
+  const handleClaimSuccess = (signature: string) => {
+    setClaimSignature(signature);
+    setShowTransactionModal(true);
+    
+    // Invalidate queries to refresh data
+    if (tokenId) {
+      queryClient.invalidateQueries({ queryKey: ['token', tokenId] });
+      if (walletAddress) {
+        queryClient.invalidateQueries({ queryKey: ['tokenClaimed', tokenId, walletAddress] });
+      }
+    }
+  };
   
   if (isLoading) {
     return (
@@ -302,18 +320,15 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
                     </p>
                   </div>
                 </CardContent>
-                {token.mintAddress && (
-                  <CardFooter className="justify-center">
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => window.open(`https://explorer.solana.com/address/${token.mintAddress}`, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View on Explorer
-                    </Button>
-                  </CardFooter>
-                )}
+                <CardFooter className="justify-center">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setShowTransactionModal(true)}
+                  >
+                    View Claim Details
+                  </Button>
+                </CardFooter>
               </Card>
             ) : token.whitelistEnabled && !whitelistStatus?.isWhitelisted ? (
               <Card className="glass border-0">
@@ -338,6 +353,7 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
                 tokenName={token.name}
                 tokenSymbol={token.symbol}
                 refreshInterval={180} // 3 minutes
+                onSuccess={handleClaimSuccess}
               />
             )}
             
@@ -383,6 +399,16 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
       </Tabs>
       
       <Footer />
+      
+      {/* Add this at the end of your component */}
+      {showTransactionModal && token && (
+        <TransactionModal 
+          token={token}
+          transactionId={claimSignature || ''}
+          walletAddress={walletAddress}
+          onClose={() => setShowTransactionModal(false)}
+        />
+      )}
     </div>
   );
 }

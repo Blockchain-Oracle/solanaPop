@@ -1,9 +1,12 @@
-import React, { useState, useEffect, ReactNode } from 'react';
+import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, RefreshCw } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { createTokenClaimQR, getQRCodeAsBase64 } from '@/lib/solana-pay';
+import { useToast } from "@/hooks/use-toast";
+import { findReference } from '@solana/pay';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 type TokenClaimQRProps = {
   tokenId: number;
@@ -11,6 +14,7 @@ type TokenClaimQRProps = {
   tokenSymbol?: string;
   expiryMinutes?: number;
   refreshInterval?: number; // in seconds
+  onSuccess?: (signature: string) => void;
 };
 
 export function TokenClaimQR({
@@ -18,9 +22,12 @@ export function TokenClaimQR({
   tokenName = '',
   tokenSymbol = '',
   expiryMinutes = 30,
-  refreshInterval = 0 // 0 means no auto-refresh
+  refreshInterval = 0, // 0 means no auto-refresh
+  onSuccess
 }: TokenClaimQRProps) {
   const [qrTimestamp, setQrTimestamp] = useState(Date.now());
+  const [claimSuccess, setClaimSuccess] = useState(false);
+  const { toast } = useToast();
   
   // Get the base URL (protocol + host)
   const baseUrl = typeof window !== 'undefined' 
@@ -43,19 +50,100 @@ export function TokenClaimQR({
       const base64 = await getQRCodeAsBase64(qr);
       return base64;
     },
-    enabled: Boolean(baseUrl),
+    enabled: Boolean(baseUrl)
   });
   
-  // Set up auto-refresh if enabled
+  // For monitoring transaction completion
+  const [isChecking, setIsChecking] = useState(false);
+  const [transactionRef, setTransactionRef] = useState<string | null>(null);
+  
+  // Create a reference for tracking when generating QR code
   useEffect(() => {
-    if (!refreshInterval || refreshInterval <= 0) return;
+    if (qrCode) {
+      // Generate a unique reference for this QR session
+      const reference = crypto.randomUUID();
+      setTransactionRef(reference);
+    }
+  }, [qrCode]);
+  
+  // Verify transaction mutation
+  const verifyMutation = useMutation({
+    mutationFn: async ({ signature }: { signature: string }) => {
+      const response = await fetch('/api/solana-pay/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signature,
+          tokenId,
+          walletAddress: window.solana?.publicKey?.toString() || '',
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to verify transaction');
+      }
+      
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setClaimSuccess(true);
+      toast({
+        title: "Token claimed successfully",
+        description: "Your token has been successfully claimed.",
+      });
+      
+      if (onSuccess && data.claim?.transactionId) {
+        onSuccess(data.claim.transactionId);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to verify claim",
+        description: error instanceof Error ? error.message : "Failed to verify claim",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Function to check for transaction completion
+  const checkForTransaction = useCallback(async () => {
+    if (!transactionRef || isChecking || claimSuccess) return;
+    
+    try {
+      setIsChecking(true);
+      
+      // Create connection to Solana network
+      const connection = new Connection(
+        process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com'
+      );
+      
+      // Use Solana Pay's findReference to find the transaction
+      const referencePubkey = new PublicKey(transactionRef);
+      const signatureInfo = await findReference(connection, referencePubkey, { finality: 'confirmed' });
+      
+      if (signatureInfo) {
+        // Transaction is confirmed! Verify it
+        await verifyMutation.mutateAsync({ signature: signatureInfo.signature });
+      }
+    } catch (error) {
+      // If findReference throws, the transaction isn't found yet
+      console.log("Transaction not found yet, polling...");
+    } finally {
+      setIsChecking(false);
+    }
+  }, [transactionRef, isChecking, claimSuccess, verifyMutation]);
+  
+  // Poll for transaction completion
+  useEffect(() => {
+    if (!transactionRef || claimSuccess) return;
     
     const intervalId = setInterval(() => {
-      setQrTimestamp(Date.now());
-    }, refreshInterval * 1000);
+      checkForTransaction();
+    }, 3000); // Check every 3 seconds
     
     return () => clearInterval(intervalId);
-  }, [refreshInterval]);
+  }, [transactionRef, checkForTransaction, claimSuccess]);
   
   // Handle manual refresh
   const handleRefresh = () => {
