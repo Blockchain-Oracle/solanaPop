@@ -9,10 +9,13 @@ import CreateEvent from "@/pages/create-event";
 import TokenDetail from "@/pages/token-detail";
 import TokenEdit from "@/pages/token/[id]/edit";
 import EventDetail from "@/pages/event-detail";
+import EventEdit from "@/pages/event/[id]/edit";
+import TokenClaimPage from "@/pages/token/[id]/claim";
+import ShowcasePage from "@/pages/showcase";
 import { WalletProvider } from "@/components/walletProvider";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import TokenClaimPage from "@/pages/token/[id]/claim";
+
 // Token Detail route component
 const TokenDetailRoute = ({ params }: { params: { id: string } }) => {
   return <TokenDetail params={params} />;
@@ -33,16 +36,23 @@ const TokenClaimRoute = ({ params }: { params: { id: string } }) => {
   return <TokenClaimPage params={params} />;
 };
 
+// Event Edit route component
+const EventEditRoute = ({ params }: { params: { id: string } }) => {
+  return <EventEdit params={params} />;
+};
+
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/showcase" component={ShowcasePage} />
       <Route path="/create-token" component={CreateToken} />
       <Route path="/create-event" component={CreateEvent} />
       <Route path="/token/:id/edit" component={TokenEditRoute} />
       <Route path="/token/:id/claim" component={TokenClaimRoute} />
       <Route path="/token/:id" component={TokenDetailRoute} />
+      <Route path="/event/:id/edit" component={EventEditRoute} />
       <Route path="/event/:id" component={EventDetailRoute} />
       <Route component={NotFound} />
     </Switch> 

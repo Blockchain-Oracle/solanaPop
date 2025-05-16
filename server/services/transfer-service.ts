@@ -16,6 +16,9 @@ export async function transferToken(
   error?: string;
 }> {
   try {
+    console.log("MINT ADDRESS", mintAddress);
+    console.log("RECIPIENT ADDRESS", recipientAddress);
+    console.log("AMOUNT", amount);
     const endpoint = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
     const connection = new Connection(endpoint);
     const serviceKeypair = getServiceKeypair();

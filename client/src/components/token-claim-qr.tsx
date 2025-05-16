@@ -15,13 +15,16 @@ const ClaimSuccess: React.FC<{
   tokenSymbol: string;
   signature: string | null;
   network?: string;
-}> = ({ tokenSymbol, signature, network = 'devnet' }) => (
+  alreadyClaimed?: boolean;
+}> = ({ tokenSymbol, signature, network = 'devnet', alreadyClaimed }) => (
   <div className="flex flex-col items-center justify-center h-48 w-48 bg-green-50 rounded-md">
     <CheckCircle className="h-16 w-16 text-green-500" />
     <span className="mt-4 text-sm font-medium text-center">
-      Successfully claimed!
+      {alreadyClaimed 
+        ? `You've already claimed this ${tokenSymbol} token!`
+        : 'Successfully claimed!'}
     </span>
-    {signature && (
+    {signature && !alreadyClaimed && (
       <a 
         href={`https://explorer.solana.com/tx/${signature}?cluster=${network}`}
         target="_blank"
@@ -112,6 +115,110 @@ export function TokenClaimQR({
   const [reference, setReference] = useState<string | null>(null);
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   
+  // Function to verify transaction on backend
+  const verifyTransactionOnBackend = async (signature: string) => {
+    try {
+      console.log("Verifying transaction with backend:", signature);
+      const response = await fetch('/api/solana-pay/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenId,
+          signature,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      // Handle already claimed case
+      if (response.status === 409) {
+        // Still return success but mark as already claimed
+        return { 
+          success: true,
+          alreadyClaimed: true,
+          message: data.error || 'Token already claimed by this wallet'
+        };
+      }
+      
+      if (!response.ok) {
+        console.error('Backend verification failed:', data);
+        return { success: false };
+      }
+      
+      // Return both success state and token transfer data 
+      return { 
+        success: data.success,
+        transferSignature: data.signature,
+        explorerUrl: data.explorerUrl
+      };
+    } catch (error) {
+      console.error('Error verifying transaction with backend:', error);
+      return { success: false };
+    }
+  };
+  
+  // Handle transaction confirmed via WebSocket subscription or polling
+  const handleTransactionConfirmed = useCallback(async (signatureInfo: { signature: string }) => {
+    if (claimSuccess) return;
+    
+    try {
+      setIsChecking(true);
+      
+      // Create connection to Solana network to get transaction details
+      const connection = new Connection(
+        'https://devnet.helius-rpc.com/?api-key=206916f1-2497-4852-89c5-37bba448dfdb',
+        {
+          commitment: 'confirmed',
+          wsEndpoint: 'wss://devnet.helius-rpc.com/?api-key=206916f1-2497-4852-89c5-37bba448dfdb'
+        }
+      );
+      
+      const transaction = await connection.getTransaction(signatureInfo.signature, {
+        commitment: 'confirmed',
+      });
+      
+      if (!transaction) {
+        console.error('Transaction not found despite notification');
+        return;
+      }
+      
+      // Verify with backend and trigger the actual token transfer
+      const verificationResult = await verifyTransactionOnBackend(signatureInfo.signature);
+      
+      if (verificationResult.success) {
+        setClaimSuccess(true);
+        
+        // Handle already claimed case
+        if (verificationResult.alreadyClaimed) {
+          toast({
+            title: "Token Already Claimed",
+            description: verificationResult.message,
+            variant: "default", // or a custom variant for this case
+          });
+        } else {
+          // Normal success case
+          setSignature(verificationResult.transferSignature || null);
+          triggerClaimConfetti();
+          
+          toast({
+            title: "Token claimed successfully",
+            description: "Your token has been successfully claimed and transferred.",
+          });
+          
+          if (onSuccess && verificationResult.transferSignature) {
+            onSuccess(verificationResult.transferSignature);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing confirmed transaction:", error);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [claimSuccess, toast, onSuccess, tokenId]);
+  
   // Create the reference from the token ID and wallet address
   useEffect(() => {
     if (isInitialized || !tokenId || !publicKey) return;
@@ -141,7 +248,7 @@ export function TokenClaimQR({
         
         // Use string tokenId for the API URL but parse it to number for the reference
         const qrCode = createTokenClaimQR({
-          recipient: publicKey?.toString() || '',
+          // recipient: publicKey?.toString() || '',
           tokenId: (tokenId),
           baseUrl,
           userWallet: publicKey?.toString() || '',
@@ -170,8 +277,15 @@ export function TokenClaimQR({
   useEffect(() => {
     if (!reference || !connected || claimSuccess) return;
     
-    const endpoint = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-    const connection = new Connection(endpoint, 'confirmed');
+    // Use your QuickNode endpoint here for more reliable WebSockets if available
+    const endpoint = 'https://devnet.helius-rpc.com/?api-key=206916f1-2497-4852-89c5-37bba448dfdb';
+    const connection = new Connection(endpoint, {
+      commitment: 'confirmed',
+      wsEndpoint: 'wss://devnet.helius-rpc.com/?api-key=206916f1-2497-4852-89c5-37bba448dfdb'
+    });
+    let subscriptionId: number | null = null;
+    let isWebSocketActive = false;
+    let pollInterval: NodeJS.Timeout | null = null;
     
     // Convert reference string back to PublicKey
     let referenceKey: PublicKey;
@@ -182,125 +296,126 @@ export function TokenClaimQR({
       return;
     }
     
-    console.log("Setting up WebSocket for reference:", referenceKey.toString());
+    console.log("Setting up transaction monitoring for reference:", referenceKey.toString());
     
-    // Set up WebSocket subscription
-    const subscriptionId = connection.onAccountChange(
-      referenceKey,
-      (accountInfo, context) => {
-        console.log("Account change detected for reference:", context);
+    // Function to check for transaction using polling (fallback)
+    const checkForTransactionWithPolling = async () => {
+      if (claimSuccess) return;
+      
+      try {
+        console.log("Polling for signatures...");
+        const signatures = await connection.getSignaturesForAddress(referenceKey, { limit: 10 });
         
-        // Query for transactions that include our reference
-        connection.getSignaturesForAddress(referenceKey, { limit: 10 })
-          .then(signatures => {
-            if (signatures.length > 0) {
-              // Get the most recent signature
-              const latestSignature = signatures[0];
-              console.log("Found transaction:", latestSignature.signature);
-              
-              // Trigger confirmation handler
-              handleTransactionConfirmed({
-                signature: latestSignature.signature
-              });
-            }
-          })
-          .catch(error => {
-            console.error("Error getting signatures:", error);
+        if (signatures.length > 0) {
+          // Get the most recent signature
+          const latestSignature = signatures[0];
+          console.log("Found transaction via polling:", latestSignature.signature);
+          
+          // Trigger confirmation handler
+          handleTransactionConfirmed({
+            signature: latestSignature.signature
           });
-      },
-      'confirmed'
-    );
-    
-    // Clean up subscription
-    return () => {
-      console.log("Cleaning up WebSocket subscription");
-      connection.removeAccountChangeListener(subscriptionId)
-        .catch(error => console.error("Error removing listener:", error));
-    };
-  }, [reference, connected, claimSuccess]);
-    
-  // Function to verify transaction on backend
-  const verifyTransactionOnBackend = async (signature: string) => {
-    try {
-      console.log("Verifying transaction with backend:", signature);
-      const response = await fetch('/api/solana-pay/token/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tokenId,
-          signature,
-        }),
-      });
-      
-      if (!response.ok) {
-        console.error('Backend verification failed:', await response.text());
-        return { success: false };
+          
+          // Clear polling if successful
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        }
+      } catch (error) {
+        console.error("Error polling for signatures:", error);
       }
-      
-      const data = await response.json();
-      
-      // Return both success state and token transfer data 
-      return { 
-        success: data.success,
-        transferSignature: data.signature, // Signature of the actual token transfer
-        explorerUrl: data.explorerUrl
-      };
-    } catch (error) {
-      console.error('Error verifying transaction with backend:', error);
-      return { success: false };
-    }
-  };
-  
-  // Handle transaction confirmed via WebSocket subscription
-  const handleTransactionConfirmed = useCallback(async (signatureInfo: { signature: string }) => {
-    if (claimSuccess) return;
+    };
     
+    // Try to set up WebSocket subscription first
     try {
-      setIsChecking(true);
+      console.log("Attempting to set up WebSocket...");
       
-      // Create connection to Solana network to get transaction details
-      const connection = new Connection(
-        process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com'
+      // Track WebSocket setup attempt
+      const webSocketSetupTimeout = setTimeout(() => {
+        console.log("WebSocket setup timed out, falling back to polling");
+        if (!isWebSocketActive && !pollInterval) {
+          pollInterval = setInterval(checkForTransactionWithPolling, 3000);
+        }
+      }, 5000);
+      
+      // Set up WebSocket subscription with error handling
+      subscriptionId = connection.onAccountChange(
+        referenceKey,
+        (accountInfo, context) => {
+          console.log("Account change detected for reference:", context);
+          isWebSocketActive = true;
+          clearTimeout(webSocketSetupTimeout);
+          
+          // Query for transactions that include our reference
+          connection.getSignaturesForAddress(referenceKey, { limit: 10 })
+            .then(signatures => {
+              if (signatures.length > 0) {
+                // Get the most recent signature
+                const latestSignature = signatures[0];
+                console.log("Found transaction via WebSocket:", latestSignature.signature);
+                
+                // Trigger confirmation handler
+                handleTransactionConfirmed({
+                  signature: latestSignature.signature
+                });
+                
+                // Clear polling if it was active
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
+              }
+            })
+            .catch(error => {
+              console.error("Error getting signatures:", error);
+            });
+        },
+        'confirmed'
       );
       
-      // Get the transaction details of the verification transaction (user-signed)
-      const transaction = await connection.getTransaction(signatureInfo.signature, {
-        commitment: 'confirmed',
-      });
+      console.log("WebSocket subscription set up with ID:", subscriptionId);
       
-      if (!transaction) {
-        console.error('Transaction not found despite WebSocket notification');
-        return;
+      // Set up a timer to check if WebSocket is working after 3 seconds
+      setTimeout(() => {
+        if (!isWebSocketActive && !claimSuccess) {
+          console.log("WebSocket not active after timeout, falling back to polling");
+          // Fall back to polling if WebSocket doesn't become active
+          if (!pollInterval) {
+            pollInterval = setInterval(checkForTransactionWithPolling, 3000);
+          }
+        }
+      }, 3000);
+    } catch (error) {
+      console.error("Error setting up WebSocket, falling back to polling:", error);
+      // Set up polling as fallback
+      if (!pollInterval) {
+        pollInterval = setInterval(checkForTransactionWithPolling, 3000);
       }
+    }
+    
+    // Clean up subscriptions and intervals
+    return () => {
+      console.log("Cleaning up monitoring...");
       
-      // Verify with backend and trigger the actual token transfer
-      const verificationResult = await verifyTransactionOnBackend(signatureInfo.signature);
-      
-      if (verificationResult.success) {
-        // Store the token transfer signature, not the verification signature
-        setClaimSuccess(true);
-        setSignature(verificationResult.transferSignature || null);
-        
-        // Trigger confetti
-        triggerClaimConfetti();
-        
-        toast({
-          title: "Token claimed successfully",
-          description: "Your token has been successfully claimed and transferred.",
-        });
-        
-        if (onSuccess && verificationResult.transferSignature) {
-          onSuccess(verificationResult.transferSignature);
+      // Clean up WebSocket if it was set up
+      if (subscriptionId !== null) {
+        try {
+          console.log("Removing WebSocket subscription:", subscriptionId);
+          connection.removeAccountChangeListener(subscriptionId)
+            .catch(error => console.error("Error removing WebSocket listener:", error));
+        } catch (err) {
+          console.error("Error during WebSocket cleanup:", err);
         }
       }
-    } catch (error) {
-      console.error("Error processing confirmed transaction:", error);
-    } finally {
-      setIsChecking(false);
-    }
-  }, [claimSuccess, toast, onSuccess, tokenId]);
+      
+      // Clean up polling interval if it was set up
+      if (pollInterval) {
+        console.log("Clearing polling interval");
+        clearInterval(pollInterval);
+      }
+    };
+  }, [reference, connected, claimSuccess, handleTransactionConfirmed]);
   
   // Handle manual refresh
   const handleRefresh = () => {
@@ -333,7 +448,8 @@ export function TokenClaimQR({
         <ClaimSuccess 
           tokenSymbol={tokenSymbol} 
           signature={signature} 
-          network={process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'} 
+          network={'devnet'}
+          alreadyClaimed={!signature} // If we don't have a signature but success is true, it was already claimed
         />
       );
     }

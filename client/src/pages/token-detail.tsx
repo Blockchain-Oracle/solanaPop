@@ -38,7 +38,8 @@ export default function TokenDetail({ params }: TokenDetailProps) {
   const [showQRModal, setShowQRModal] = useState(false);
   const tokenId = parseInt(params.id);
   
-  // Check connection
+  // Remove or modify this check - it's causing the redirect to home
+  // Instead, show a connection prompt within the page
   useEffect(() => {
     if (!connected) {
       toast({
@@ -46,9 +47,10 @@ export default function TokenDetail({ params }: TokenDetailProps) {
         description: "Please connect your wallet to view token details",
         variant: "destructive",
       });
-      navigate("/");
+      // Don't navigate away - just show a prompt to connect
+      // navigate("/"); <- Remove this
     }
-  }, [connected, navigate, toast]);
+  }, [connected, toast]);
   
   // Get token data
   const { data: token, isLoading } = useQuery<Token>({

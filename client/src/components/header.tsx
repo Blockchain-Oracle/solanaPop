@@ -10,6 +10,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
@@ -69,45 +71,59 @@ export default function Header({ onReturnHome }: HeaderProps) {
       </div>
       
       <div className="flex items-center gap-3">
-        {/* Navigation Links - Only show when connected */}
-        {connected && (
-          <div className="hidden md:flex items-center gap-2 mr-2">
-            <Button 
-              variant="ghost" 
-              className="glass px-3 py-2 rounded-full hover:bg-white/10"
-              onClick={() => navigate("/dashboard")}
-            >
-              <LayoutDashboard className="h-4 w-4 mr-2" />
-              <span className="text-sm">Dashboard</span>
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="glass px-3 py-2 rounded-full hover:bg-white/10"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Create</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="glass border-0 bg-solana-darker/90 backdrop-blur-xl">
-                <DropdownMenuItem 
-                  className="hover:bg-white/10 focus:bg-white/10 cursor-pointer"
-                  onClick={() => navigate("/create-token")}
-                >
-                  Create Token
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="hover:bg-white/10 focus:bg-white/10 cursor-pointer"
-                  onClick={() => navigate("/create-event")}
-                >
-                  Create Event
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+        {/* Navigation Links - Show regardless of connection */}
+        <div className="hidden md:flex items-center gap-2 mr-2">
+          <Button 
+            variant="ghost" 
+            className="glass px-3 py-2 rounded-full hover:bg-white/10"
+            onClick={() => navigate("/showcase")}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            <span className="text-sm">Showcase</span>
+          </Button>
+
+          {connected && (
+            <>
+              <Button 
+                variant="ghost" 
+                className="glass px-3 py-2 rounded-full hover:bg-white/10"
+                onClick={() => navigate("/dashboard")}
+              >
+                <LayoutDashboard className="h-4 w-4 mr-2" />
+                <span className="text-sm">Dashboard</span>
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="glass px-3 py-2 rounded-full hover:bg-white/10"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    <span className="text-sm">Create</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="glass border-0 bg-solana-darker/90 backdrop-blur-xl">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Create New</DropdownMenuLabel>
+                    <DropdownMenuItem 
+                      className="hover:bg-white/10 focus:bg-white/10 cursor-pointer"
+                      onClick={() => navigate("/create-token")}
+                    >
+                      Create Token
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="hover:bg-white/10 focus:bg-white/10 cursor-pointer"
+                      onClick={() => navigate("/create-event")}
+                    >
+                      Create Event
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
         
         {/* Home Button - Only show on sub-pages */}
         {onReturnHome && (

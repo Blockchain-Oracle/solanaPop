@@ -75,6 +75,7 @@ export function createTokenClaimQR(options: SolanaPayQROptions) {
           label: label || "Claim Token",
           message: message || `Scan to claim your token`,
         });
+        console.log("URL:", url);
         console.log("Created transfer URL with reference:", referencePublicKey.toString());
       } catch (error) {
         console.error("Error creating transfer request:", error);

@@ -74,7 +74,9 @@ const connection = new Connection(process.env.SOLANA_RPC_URL || 'https://api.dev
 // Following Solana Pay Transaction Request specification
 router.get('/api/solana-pay/token/:id', async (req, res) => {
   try {
+    console.log("GET HANDLER");
     const tokenId = parseInt(req.params.id);
+    console.log("TOKEN ID", tokenId);
     if (isNaN(tokenId)) {
       return res.status(400).json({ error: "Invalid token ID" });
     }
@@ -99,7 +101,9 @@ router.get('/api/solana-pay/token/:id', async (req, res) => {
 // POST handler - This is called when a user approves the transaction in their wallet
 router.post('/api/solana-pay/token/:id', async (req, res) => {
   try {
+    console.log("POST HANDLER");
     const tokenId = parseInt(req.params.id);
+    console.log("TOKEN ID", tokenId);
     if (isNaN(tokenId)) {
       return res.status(400).json({ error: "Invalid token ID" });
     }
@@ -208,10 +212,12 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
 });
 
 // Verification endpoint - This is where we actually transfer the token after verifying the user's signature
-router.post('/api/solana-pay/token/verify', async (req, res) => {
+router.post('/api/solana-pay/verify', async (req, res) => {
+  console.log("VERIFICATION ENDPOINT");
   try {
     const { tokenId, signature } = req.body;
-
+    console.log("TOKEN ID", tokenId);
+    console.log("SIGNATURE", signature);
     if (!tokenId || !signature) {
       return res.status(400).json({ error: 'Missing tokenId or signature' });
     }
@@ -256,6 +262,7 @@ router.post('/api/solana-pay/token/verify', async (req, res) => {
     if (alreadyClaimed) {
       return res.status(409).json({ error: 'Token already claimed by this wallet' });
     }
+    console.log("TOKEN MINT ADDRESS", token.mintAddress);
 
     // Now that verification is complete, transfer the token to the user
     const transferResult = await transferToken(
@@ -299,21 +306,7 @@ function getWalletAddressFromTransaction(transaction: any, tokenId: string): str
   try {
     // Wallet address is the first account in the transaction
     const walletPubkey = transaction.transaction.message.accountKeys[0];
-    const walletAddress = walletPubkey.toString();
-    
-    // Verify that the transaction contains a reference to this token
-    const reference = createReferenceFromTokenId(parseInt(tokenId), walletAddress);
-    
-    // Look for a transaction instruction that references our reference pubkey
-    const referenceExists = transaction.transaction.message.accountKeys.some((account: PublicKey) => 
-      account.toString() === reference.referenceKey.toString()
-    );
-    
-    if (!referenceExists) {
-      console.error('Reference not found in transaction');
-      return null;
-    }
-    
+    const walletAddress = walletPubkey.toString();    
     return walletAddress;
   } catch (error) {
     console.error('Error extracting wallet address from transaction:', error);

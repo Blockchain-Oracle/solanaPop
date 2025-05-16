@@ -81,7 +81,9 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
 // Get token by ID
 router.get('/api/tokens/:id', async (req, res) => {
   try {
+    console.log("GET TOKEN BY ID");
     const tokenId = parseInt(req.params.id);
+    console.log("TOKEN ID", tokenId);
     if (isNaN(tokenId)) {
       return res.status(400).json({ error: "Invalid token ID" });
     }
