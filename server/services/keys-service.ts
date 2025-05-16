@@ -11,6 +11,7 @@ export function getServiceKeypair(): Keypair {
     throw new Error("SERVICE_PRIVATE_KEY not found in environment variables");
   }
   
+  console.log(privateKeyString,"privateKeyString");
   const privateKeyArray = JSON.parse(privateKeyString);
   return Keypair.fromSecretKey(new Uint8Array(privateKeyArray));
 }
