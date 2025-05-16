@@ -57,8 +57,8 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       supply: parseInt(supply),
       creatorId: parseInt(creatorId),
       creatorAddress,
-      mintAddress: tokenResult.mintAddress,
-      metadataUri: metadataResult.metadataUri,
+      mintAddress: tokenResult?.mintAddress || '',
+      metadataUri: metadataResult.metadataUri || '',
       whitelistEnabled: whitelistEnabled === 'true',
     });
     
@@ -66,10 +66,10 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       success: true,
       token: {
         ...newToken,
-        mintAddress: tokenResult.mintAddress,
-        metadataUri: metadataResult.metadataUri,
-        signature: tokenResult.signature,
-        explorerUrl: tokenResult.explorerUrl
+        mintAddress: tokenResult?.mintAddress || '',
+        metadataUri: metadataResult.metadataUri || '',
+        signature: tokenResult?.signature || '',
+        explorerUrl: tokenResult?.explorerUrl || ''
       }
     });
   } catch (error) {

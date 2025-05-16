@@ -8,6 +8,34 @@
       "when": 1747312952724,
       "tag": "0000_mute_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747313000000,
+      "tag": "0002_events_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747313100000,
+      "tag": "0003_whitelist_feature",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747313200000,
+      "tag": "0004_token_mint_required",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1747402251539,
+      "tag": "0004_noisy_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

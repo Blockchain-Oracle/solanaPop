@@ -64,49 +64,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(whitelist);
   app.use(tokensAPI);
 
-  // The following routes will be kept as fallbacks for backward compatibility
-  // Note: New token operations should use the modular API routes from tokensAPI
-
-  // API routes for token operations
-  app.post("/api/tokens", asyncHandler(async (req: Request, res: Response) => {
-    console.log("Received token creation request:", req.body);
-    const tokenData = insertTokenSchema.parse(req.body);
-    const token = await storage.createToken(tokenData);
-    return res.status(201).json(token);
-  }));
-
-  app.get("/api/tokens/:id", async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ error: "Invalid token ID" });
-      }
-      
-      const token = await storage.getToken(id);
-      if (!token) {
-        return res.status(404).json({ error: "Token not found" });
-      }
-      
-      return res.json(token);
-    } catch (error) {
-      return handleError(error, res);
-    }
-  });
-
-  app.get("/api/tokens/creator/:creatorId", async (req: Request, res: Response) => {
-    try {
-      const creatorId = parseInt(req.params.creatorId);
-      if (isNaN(creatorId)) {
-        return res.status(400).json({ error: "Invalid creator ID" });
-      }
-      
-      const tokens = await storage.getTokensByCreator(creatorId);
-      return res.json(tokens);
-    } catch (error) {
-      return handleError(error, res);
-    }
-  });
-
   // API routes for events
   app.post("/api/events", async (req: Request, res: Response) => {
     try {

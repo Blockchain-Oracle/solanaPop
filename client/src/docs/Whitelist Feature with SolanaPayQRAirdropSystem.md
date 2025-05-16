@@ -1980,7 +1980,7 @@ export default function EditTokenPage() {
   });
   
   // Check if user is token creator
-  const isCreator = token && publicKey?.toString() === token.creatorId;
+  const isCreator = token && publicKey?.toString() === token.creatorAddress;
   
   if (isLoading) {
     return (

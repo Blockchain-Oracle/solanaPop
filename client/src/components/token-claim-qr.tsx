@@ -1,12 +1,79 @@
 import React, { useState, useEffect, ReactNode, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, RefreshCw } from 'lucide-react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { createTokenClaimQR, getQRCodeAsBase64 } from '@/lib/solana-pay';
+import { Loader2, Download, RefreshCw, CheckCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { createTokenClaimQR, getQRCodeAsBase64, createReferenceFromTokenId } from '@/lib/solana-pay';
 import { useToast } from "@/hooks/use-toast";
 import { findReference } from '@solana/pay';
 import { Connection, PublicKey } from '@solana/web3.js';
+import confetti from 'canvas-confetti';
+
+// Helper component for QR success state
+const ClaimSuccess: React.FC<{ 
+  tokenSymbol: string;
+  signature: string | null;
+  network?: string;
+}> = ({ tokenSymbol, signature, network = 'devnet' }) => (
+  <div className="flex flex-col items-center justify-center h-48 w-48 bg-green-50 rounded-md">
+    <CheckCircle className="h-16 w-16 text-green-500" />
+    <span className="mt-4 text-sm font-medium text-center">
+      Successfully claimed!
+    </span>
+    {signature && (
+      <a 
+        href={`https://explorer.solana.com/tx/${signature}?cluster=${network}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 text-xs text-blue-500 underline"
+      >
+        View on Explorer
+      </a>
+    )}
+  </div>
+);
+
+// Helper component for QR loading state
+const QRLoading: React.FC = () => (
+  <div className="flex flex-col items-center justify-center h-48 w-48">
+    <Loader2 className="h-8 w-8 animate-spin" />
+    <span className="mt-2 text-sm">Generating QR code...</span>
+  </div>
+);
+
+// Helper component for QR display
+const QRDisplay: React.FC<{ 
+  qrCode: string;
+  tokenSymbol: string;
+}> = ({ qrCode, tokenSymbol }) => (
+  <div className="relative h-48 w-48 bg-white p-2 rounded-md">
+    <img
+      src={qrCode}
+      alt={`QR code for claiming ${tokenSymbol || 'token'}`}
+      className="w-full h-full object-contain"
+    />
+  </div>
+);
+
+// Helper component for QR error state
+const QRError: React.FC = () => (
+  <div className="flex flex-col items-center justify-center h-48 w-48 border border-dashed rounded-md">
+    <span className="text-sm text-center text-gray-500">
+      Could not generate QR code. Please try refreshing.
+    </span>
+  </div>
+);
+
+// Helper function to trigger confetti
+export const triggerClaimConfetti = () => {
+  if (typeof window !== 'undefined') {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  }
+};
 
 type TokenClaimQRProps = {
   tokenId: number;
@@ -27,6 +94,7 @@ export function TokenClaimQR({
 }: TokenClaimQRProps) {
   const [qrTimestamp, setQrTimestamp] = useState(Date.now());
   const [claimSuccess, setClaimSuccess] = useState(false);
+  const [signature, setSignature] = useState<string | null>(null);
   const { toast } = useToast();
   
   // Get the base URL (protocol + host)
@@ -34,10 +102,15 @@ export function TokenClaimQR({
     ? `${window.location.protocol}//${window.location.host}`
     : '';
   
+  // Get the user's wallet address if available
+  const userWalletAddress = typeof window !== 'undefined' && window.solana?.publicKey 
+    ? window.solana.publicKey.toString() 
+    : '';
+  
   // Generate QR code
   const { data: qrCode, isLoading: isGeneratingQR, refetch } = useQuery({
-    queryKey: ['tokenQR', tokenId, qrTimestamp],
-    queryFn: async () => {
+    queryKey: ['tokenQR', tokenId, qrTimestamp, userWalletAddress],
+    queryFn: async (): Promise<string | null> => {
       if (!baseUrl) return null;
       console.log(baseUrl);
       const qr = createTokenClaimQR({
@@ -45,10 +118,11 @@ export function TokenClaimQR({
         baseUrl,
         label: `Claim ${tokenName} (${tokenSymbol})`,
         message: `Scan to claim your ${tokenSymbol} token`,
+        userWallet: userWalletAddress // Pass user wallet for unique reference
       });
       
       const base64 = await getQRCodeAsBase64(qr);
-      return base64;
+      return base64 as string;
     },
     enabled: Boolean(baseUrl)
   });
@@ -60,51 +134,11 @@ export function TokenClaimQR({
   // Create a reference for tracking when generating QR code
   useEffect(() => {
     if (qrCode) {
-      // Generate a unique reference for this QR session
-      const reference = crypto.randomUUID();
-      setTransactionRef(reference);
+      // Use consistent reference from tokenId and user wallet that matches the one in the QR code
+      const { referenceString } = createReferenceFromTokenId(tokenId, userWalletAddress);
+      setTransactionRef(referenceString);
     }
-  }, [qrCode]);
-  
-  // Verify transaction mutation
-  const verifyMutation = useMutation({
-    mutationFn: async ({ signature }: { signature: string }) => {
-      const response = await fetch('/api/solana-pay/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          signature,
-          tokenId,
-          walletAddress: window.solana?.publicKey?.toString() || '',
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to verify transaction');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setClaimSuccess(true);
-      toast({
-        title: "Token claimed successfully",
-        description: "Your token has been successfully claimed.",
-      });
-      
-      if (onSuccess && data.claim?.transactionId) {
-        onSuccess(data.claim.transactionId);
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Failed to verify claim",
-        description: error instanceof Error ? error.message : "Failed to verify claim",
-        variant: "destructive",
-      });
-    },
-  });
+  }, [qrCode, tokenId, userWalletAddress]);
   
   // Function to check for transaction completion
   const checkForTransaction = useCallback(async () => {
@@ -123,8 +157,21 @@ export function TokenClaimQR({
       const signatureInfo = await findReference(connection, referencePubkey, { finality: 'confirmed' });
       
       if (signatureInfo) {
-        // Transaction is confirmed! Verify it
-        await verifyMutation.mutateAsync({ signature: signatureInfo.signature });
+        // Transaction is confirmed! No need to verify via backend
+        setClaimSuccess(true);
+        setSignature(signatureInfo.signature);
+        
+        // Trigger confetti
+        triggerClaimConfetti();
+        
+        toast({
+          title: "Token claimed successfully",
+          description: "Your token has been successfully claimed.",
+        });
+        
+        if (onSuccess) {
+          onSuccess(signatureInfo.signature);
+        }
       }
     } catch (error) {
       // If findReference throws, the transaction isn't found yet
@@ -132,7 +179,7 @@ export function TokenClaimQR({
     } finally {
       setIsChecking(false);
     }
-  }, [transactionRef, isChecking, claimSuccess, verifyMutation]);
+  }, [transactionRef, isChecking, claimSuccess, toast, onSuccess]);
   
   // Poll for transaction completion
   useEffect(() => {
@@ -148,6 +195,8 @@ export function TokenClaimQR({
   // Handle manual refresh
   const handleRefresh = () => {
     setQrTimestamp(Date.now());
+    setClaimSuccess(false);
+    setSignature(null);
   };
   
   // Handle download QR code
@@ -162,21 +211,38 @@ export function TokenClaimQR({
     document.body.removeChild(a);
   };
   
-  // Check if qrCode exists and is a string to satisfy type checking
-  const qrCodeContent = qrCode && typeof qrCode === 'string' ? (
-    <Button variant="outline" onClick={handleDownload}>
-      <Download className="h-4 w-4 mr-2" />
-      Download
-    </Button>
-  ) : null;
+  // Determine what to show in the QR code area
+  const renderQRContent = (): React.ReactNode => {
+    if (isGeneratingQR) {
+      return <QRLoading />;
+    }
+    
+    if (claimSuccess) {
+      return (
+        <ClaimSuccess 
+          tokenSymbol={tokenSymbol} 
+          signature={signature} 
+          network={process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'} 
+        />
+      );
+    }
+    
+    if (qrCode) {
+      return <QRDisplay qrCode={qrCode} tokenSymbol={tokenSymbol} />;
+    }
+    
+    return <QRError />;
+  };
   
   return (
     <Card>
       <CardHeader>
         <CardTitle>Claim Token QR Code</CardTitle>
         <CardDescription>
-          Scan this QR code with a Solana Pay compatible wallet to claim your token.
-          {refreshInterval > 0 && (
+          {claimSuccess 
+            ? `You've successfully claimed your ${tokenSymbol} token!` 
+            : `Scan this QR code with a Solana Pay compatible wallet to claim your token.`}
+          {!claimSuccess && refreshInterval > 0 && (
             <span className="block text-xs mt-1">
               QR code refreshes every {refreshInterval} seconds for security.
             </span>
@@ -184,33 +250,26 @@ export function TokenClaimQR({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex justify-center">
-        {isGeneratingQR ? (
-          <div className="flex flex-col items-center justify-center h-48 w-48">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="mt-2 text-sm">Generating QR code...</span>
-          </div>
-        ) : qrCode ? (
-          <div className="relative h-48 w-48 bg-white p-2 rounded-md">
-            <img
-              src={qrCode as string}
-              alt={`QR code for claiming ${tokenSymbol || 'token'}`}
-              className="w-full h-full object-contain"
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-48 w-48 border border-dashed rounded-md">
-            <span className="text-sm text-center text-gray-500">
-              Could not generate QR code. Please try refreshing.
-            </span>
-          </div>
-        )}
+        {renderQRContent()}
       </CardContent>
       <CardFooter className="flex justify-center space-x-2">
-        <Button variant="outline" onClick={handleRefresh} disabled={isGeneratingQR}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh QR
-        </Button>
-        {qrCodeContent}
+        {!claimSuccess && (
+          <Button variant="outline" onClick={handleRefresh} disabled={isGeneratingQR}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh QR
+          </Button>
+        )}
+        {qrCode && !claimSuccess && (
+          <Button variant="outline" onClick={handleDownload}>
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </Button>
+        )}
+        {claimSuccess && (
+          <Button onClick={handleRefresh}>
+            Generate New Code
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

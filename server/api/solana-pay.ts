@@ -5,6 +5,7 @@ import { storage } from '../storage';
 import { hasUserClaimedToken } from '../storage';
 import { transferToken } from '../services/transfer-service';
 import { getServiceKeypair } from '../services/keys-service';
+import { createReferenceFromTokenId } from '@/lib/solana-pay';
 
 const router = express.Router();
 
@@ -143,99 +144,39 @@ router.post('/api/solana-pay/token/:id', async (req, res) => {
         message: "You have already claimed this token" 
       });
     }
-    
-    // Create a transaction
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    
-    // Create reference for tracking this transaction
-    const reference = new Keypair().publicKey;
-    
-    const transaction = new Transaction({
-      feePayer: walletAddress,
-      blockhash,
-      lastValidBlockHeight,
-    });
-    
-    // Add reference to transaction for tracking
-    transaction.add(
-      new TransactionInstruction({
-        keys: [{ pubkey: reference, isSigner: false, isWritable: false }],
-        programId: SystemProgram.programId,
-        data: Buffer.from([])
-      })
-    );
-    
-    // Serialize transaction according to Solana Pay specification
-    const serializedTransaction = transaction.serialize({
-      requireAllSignatures: false,
-    });
-    
-    const base64Transaction = serializedTransaction.toString('base64');
-    
-    return res.status(200).json({
-      transaction: base64Transaction,
-      message: `Claim your ${token.symbol} token!`
-    });
-    
-  } catch (error) {
-    console.error("Error in POST handler:", error);
-    return res.status(500).json({ error: "Server error" });
-  }
-});
 
-// Verification endpoint - This can be polled after the transaction is submitted
-router.post('/api/solana-pay/verify', async (req, res) => {
-  try {
-    const { signature, tokenId, walletAddress } = req.body;
+    const referenceKey =createReferenceFromTokenId(tokenId,walletAddress.toString())
     
-    if (!signature || !tokenId || !walletAddress) {
-      return res.status(400).json({ error: "Missing required parameters" });
-    }
-    
-    // Verify transaction on-chain
-    const transactionStatus = await connection.getSignatureStatus(signature);
-    if (!transactionStatus.value || transactionStatus.value.err) {
-      return res.status(400).json({ error: "Invalid transaction" });
-    }
-    
-    // Get token details
-    const token = await storage.getToken(parseInt(tokenId));
-    if (!token) {
-      return res.status(404).json({ error: "Token not found" });
-    }
-    
-    if (!token.mintAddress) {
-      return res.status(400).json({ error: "Token has no mint address" });
-    }
-    
-    // Transfer tokens from service wallet to the user's wallet
+    // Transfer the token directly using the backend service
     const transferResult = await transferToken(
       token.mintAddress,
-      walletAddress,
-      1 // Transfer 1 token (claiming)
+      walletAddress.toString(),
+      1, // Transfer 1 token (adjust as needed)
+      referenceKey.referenceKey
     );
-    
+
     if (!transferResult.success) {
       return res.status(500).json({ error: transferResult.error || "Failed to transfer token" });
     }
     
     // Create token claim in database
     const claim = await storage.createTokenClaim({
-      tokenId: parseInt(tokenId),
+      tokenId: tokenId,
       userId: 0, // System user or derive from wallet
-      walletAddress,
-      transactionId: transferResult.signature || signature
+      walletAddress: walletAddress.toString(),
+      transactionId: transferResult.signature
     });
-    
-    return res.status(200).json({ 
-      success: true, 
-      claim,
+
+    return res.status(200).json({
+      success: true,
       signature: transferResult.signature,
-      explorerUrl: transferResult.explorerUrl
+      explorerUrl: transferResult.explorerUrl,
+      claim,
+      message: `Successfully claimed ${token.symbol} token!`
     });
   } catch (error) {
-    console.error("Error verifying transaction:", error);
-    return res.status(500).json({ error: "Failed to verify transaction" });
+    console.error("Error in POST handler:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -244,9 +185,9 @@ export default router;
 
 // 1. fix the routing and add good header for it @App.tsx 
 
-// 2. this page is not been routed @claim.tsx this is routed insread @claim.tsx this is wrong infact delete the @claim.tsx 
+//  ✅ 2. this page is not been routed @claim.tsx this is routed insread @claim.tsx this is wrong infact delete the @claim.tsx 
 
-// 3. the qr code should be consistent this qrcode in here @token-claim-qr.tsx should be the one used every where
+// ✅ 3. the qr code should be consistent this qrcode in here @token-claim-qr.tsx should be the one used every where
 
 // 4.after the trasaction is successfull in post('/api/solana-pay/token/:id  i need to call 
 

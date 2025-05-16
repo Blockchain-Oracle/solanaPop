@@ -121,7 +121,7 @@ export default function TokenClaimPage({ params }: TokenClaimPageProps) {
   });
   
   // Determine if the current user is the creator of the token
-  const isCreator = token ? walletAddress === token.creatorId : false;
+  const isCreator = token ? walletAddress === token.creatorAddress : false;
   
   // Determine if user can claim token
   const canClaim = connected && 

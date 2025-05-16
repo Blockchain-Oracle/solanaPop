@@ -6,39 +6,63 @@ import BigNumber from 'bignumber.js';
 export type SolanaPayQROptions = {
   tokenId: number;
   baseUrl: string;
+  userWallet: string; // User wallet address for unique reference creation
   label?: string;
   message?: string;
+  reference?: string;
   recipient?: string; // Recipient wallet address if using transfer request
+
 };
+
+// Create a consistent reference from tokenId and user wallet
+export function createReferenceFromTokenId(
+  tokenId: number, 
+  userWallet: string
+): { referenceKey: PublicKey, referenceString: string } {
+  // Create a reference buffer combining tokenId and userWallet if available
+  const reference = new Uint8Array(32);
+  
+
+    // Create a combined identifier with tokenId and userWallet
+    const uniqueIdentifier = `${tokenId}-${userWallet}`;
+    const encodedData = new TextEncoder().encode(uniqueIdentifier);
+    // Take only the first 32 bytes or pad if shorter
+    reference.set(encodedData.slice(0, Math.min(encodedData.length, 32)));
+  
+  // Convert to PublicKey
+  const referenceKey = new PublicKey(reference);
+  
+  // Also return as string for component state
+  const referenceString = referenceKey.toString();
+  
+  return { referenceKey, referenceString };
+}
 
 // Create a QR code for transaction request
 export function createTokenClaimQR(options: SolanaPayQROptions) {
   try {
-    const { tokenId, baseUrl, label, message, recipient } = options;
+    const { tokenId, baseUrl, label, message, recipient, userWallet } = options;
     
     let url;
-    
+     
+    // Create a reference from tokenId and user wallet
+    const { referenceKey: referencePublicKey } = createReferenceFromTokenId(tokenId, userWallet);
+        
     if (recipient) {
       // Create a transfer request (simpler, non-interactive)
       // This is for the "solana:<recipient>?..." format
       try {
         const recipientPublicKey = new PublicKey(recipient);
-        
-        // Create a reference to track this specific transaction
-        const reference = new Uint8Array(32);
-        // Use tokenId as a reference for this transaction
-        reference.set(Buffer.from(tokenId.toString().padStart(32, '0')));
-        
-        // Convert to PublicKey and put in array
-        const referencePublicKey = new PublicKey(reference);
+       
         
         // Create a Solana Pay transfer URL
         url = encodeURL({
           recipient: recipientPublicKey,
           reference: [referencePublicKey], // Array of PublicKeys
           label: label || "Claim Token",
-          message: message || `Scan to claim your token`
+          message: message || `Scan to claim your token`,
         });
+        console.log(url,"url");
       } catch (error) {
         console.error("Error creating transfer request:", error);
         // Fall back to transaction request
@@ -49,6 +73,7 @@ export function createTokenClaimQR(options: SolanaPayQROptions) {
           label: label || "Claim Token",
           message: message || "Scan to claim your token"
         });
+        console.log(url,"url");
       }
     } else {
       // Create a transaction request (interactive)
@@ -58,8 +83,11 @@ export function createTokenClaimQR(options: SolanaPayQROptions) {
       url = encodeURL({
         link: apiUrl,
         label: label || "Claim Token",
-        message: message || "Scan to claim your token"
+        message: message || "Scan to claim your token",
+        reference: [referencePublicKey]
       });
+      console.log(referencePublicKey,"referencePublicKey");
+      console.log(url,"url");
     }
     
     // Generate QR code from the URL
@@ -138,3 +166,7 @@ export function parseTransactionFromBase64(transactionBase64: string): Transacti
   const transactionBinary = Buffer.from(transactionBase64, 'base64');
   return Transaction.from(transactionBinary);
 } 
+
+// OKAY LETS UPDATE THE COMPONETS SINCE WE UPDATED LOTS OF STUFF IN THE API
+
+// WHICH INCLUDES UPLOADING TOKEN USER CAN NOW ADD IMAGES

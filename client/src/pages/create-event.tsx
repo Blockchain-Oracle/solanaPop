@@ -82,13 +82,11 @@ export default function CreateEvent() {
       try {
         // First get the user ID by wallet address
         const userResponse = await apiRequest("GET", `/api/users/wallet/${publicKey.toString()}`);
-        console.log(userResponse,"userResponse");
         const userData = await userResponse.json();
-        console.log(userData,"userData");
         if (!userData || !userData.id) return [];
         
         // Then fetch tokens created by this user
-        const tokensResponse = await apiRequest("GET", `/api/tokens/creator/${userData.id}`);
+        const tokensResponse = await apiRequest("GET", `/api/tokens?creatorId=${userData.id}`);
         return await tokensResponse.json();
       } catch (error) {
         console.error("Error fetching user tokens:", error);
@@ -116,7 +114,7 @@ export default function CreateEvent() {
         const eventData = {
           ...formData,
           creatorId: userData.id,
-          // Only include tokenId if it was selected
+          // Convert tokenId to a number if it was selected
           tokenId: formData.tokenId ? parseInt(formData.tokenId) : undefined,
           // Only include accessCode if event is private
           accessCode: formData.isPrivate ? formData.accessCode : undefined,

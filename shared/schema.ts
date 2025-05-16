@@ -21,8 +21,8 @@ export const tokens = pgTable("tokens", {
   creatorId: integer("creator_id").notNull(),
   creatorAddress: text("creator_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  mintAddress: text("mint_address"),
-  metadataUri: text("metadata_uri"),
+  mintAddress: text("mint_address").notNull(),
+  metadataUri: text("metadata_uri").notNull(),
   whitelistEnabled: boolean("whitelist_enabled").default(false),
 });
 

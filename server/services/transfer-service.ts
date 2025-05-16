@@ -8,7 +8,8 @@ import { getServiceKeypair } from './keys-service';
 export async function transferToken(
   mintAddress: string,
   recipientAddress: string,
-  amount: number
+  amount: number,
+  referenceKey: PublicKey
 ): Promise<{
   success: boolean;
   signature?: string;
@@ -46,12 +47,23 @@ export async function transferToken(
     
     // Create transfer transaction
     const tx = new Transaction();
-    tx.add(createTransferInstruction(
+
+
+    const transferIx = createTransferInstruction(
       sourceAccount.address,
       destinationAccount.address,
       serviceKeypair.publicKey,
       amount * Math.pow(10, decimals)
-    ));
+    );
+    
+    // Attach reference as a readonly key
+    transferIx.keys.push({
+      pubkey: referenceKey,
+      isSigner: false,
+      isWritable: false,
+    });
+    
+    tx.add(transferIx);
     
     // Get recent blockhash and send transaction
     const latestBlockhash = await connection.getLatestBlockhash('confirmed');
