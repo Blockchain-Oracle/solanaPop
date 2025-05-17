@@ -12,7 +12,7 @@
     "db:migrate": "tsx scripts/add-creator-address.ts"
   },
   "engines": {
-    "node": "23.11.0"
+    "node": ">=20.19.2"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
