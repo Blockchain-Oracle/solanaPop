@@ -96,7 +96,7 @@ router.get('/api/whitelist', async (req, res) => {
       return res.status(400).json({ error: "Exactly one of tokenId or eventId must be provided" });
     }
     
-    let entries = [];
+    let entries: any[] = [];
     if (tokenId) {
       const id = parseInt(tokenId as string);
       if (isNaN(id)) {

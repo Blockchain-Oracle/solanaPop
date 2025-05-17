@@ -108,6 +108,8 @@
   },
   "devDependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@lightprotocol/compressed-token": "^0.21.0",
+    "@lightprotocol/stateless.js": "^0.21.0",
     "@replit/vite-plugin-cartographer": "^0.1.2",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.3",
     "@tailwindcss/typography": "^0.5.15",

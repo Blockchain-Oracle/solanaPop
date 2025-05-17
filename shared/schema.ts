@@ -24,6 +24,10 @@ export const tokens = pgTable("tokens", {
   mintAddress: text("mint_address").notNull(),
   metadataUri: text("metadata_uri").notNull(),
   whitelistEnabled: boolean("whitelist_enabled").default(false),
+  isCompressed: boolean("is_compressed").default(false).notNull(),
+  compressionState: text("compression_state").default('uncompressed'), // can be 'uncompressed', 'compressed', 'decompressing'
+  stateTreeId: text("state_tree_id"), // for tracking compression state tree
+  tokenPoolId: text("token_pool_id"), // for tracking token pool info
 });
 
 // New events table
@@ -135,6 +139,10 @@ export const insertTokenSchema = createInsertSchema(tokens)
     mintAddress: true,
     metadataUri: true,
     whitelistEnabled: true,
+    isCompressed: true,
+    compressionState: true,
+    stateTreeId: true,
+    tokenPoolId: true,
   })
   .extend({
     // Accept either a Date object or an ISO string for expiryDate

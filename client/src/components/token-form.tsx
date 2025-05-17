@@ -19,6 +19,9 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Label } from "@/components/ui/label";
+import { InfoIcon } from "lucide-react";
 
 // Token form schema with extended validation
 const tokenFormSchema = z.object({
@@ -30,6 +33,7 @@ const tokenFormSchema = z.object({
   includeExpiry: z.boolean().optional(),
   category: z.string().optional(),
   whitelistEnabled: z.boolean().optional(),
+  isCompressed: z.boolean().optional(),
 });
 
 // Define token interface to match API response
@@ -46,6 +50,7 @@ interface Token {
   expiryDate?: string | Date | null;
   whitelistEnabled?: boolean;
   category?: string;
+  isCompressed?: boolean;
 }
 
 interface TokenFormProps {
@@ -59,6 +64,7 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
   const { connected, walletAddress } = useWallet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [whitelistEnabled, setWhitelistEnabled] = useState(token?.whitelistEnabled || false);
+  const [isCompressed, setIsCompressed] = useState(false);
   
   // Toggle whitelist mutation
   const toggleWhitelistMutation = useToggleWhitelist();
@@ -74,6 +80,7 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
       expiryDate: token?.expiryDate ? new Date(token.expiryDate) : undefined,
       category: token?.category || "event",
       whitelistEnabled: token?.whitelistEnabled || false,
+      isCompressed: token?.isCompressed || false,
     },
   });
   
@@ -90,7 +97,8 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
           creatorAddress: walletAddress,
           supply: parseInt(String(tokenData.supply)),
           expiryDate: tokenData.expiryDate ? tokenData.expiryDate.toISOString() : null,
-          whitelistEnabled: tokenData.whitelistEnabled
+          whitelistEnabled: tokenData.whitelistEnabled,
+          isCompressed: tokenData.isCompressed,
         };
         
         // Determine if we're creating or updating
@@ -157,6 +165,19 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
       });
       return;
     }
+    
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (typeof value === "boolean") {
+        formData.append(key, value.toString());
+      } else if (typeof value === "number") {
+        formData.append(key, value.toString());
+      } else if (typeof value === "string") {
+        formData.append(key, value);
+      } else if (value instanceof Date) {
+        formData.append(key, value.toISOString());
+      }
+    });
     
     tokenMutation.mutate(data);
   };
@@ -402,6 +423,29 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
                 </AlertDescription>
               </Alert>
             )}
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="compression-toggle"
+                checked={isCompressed}
+                onCheckedChange={setIsCompressed}
+              />
+              <Label htmlFor="compression-toggle">
+                Enable ZK Compression
+                <span className="ml-2 text-xs text-white/50">(Up to 5000x cheaper)</span>
+              </Label>
+              <HoverCard>
+                <HoverCardTrigger>
+                  <InfoIcon className="h-4 w-4 text-white/50" />
+                </HoverCardTrigger>
+                <HoverCardContent>
+                  <p>ZK Compression significantly reduces token storage costs on Solana.</p>
+                  <p className="mt-2 text-sm text-white/70">
+                    Compressed tokens are fully compatible with regular SPL tokens and can be decompressed at any time.
+                  </p>
+                </HoverCardContent>
+              </HoverCard>
+            </div>
             
             <div className="flex justify-end">
               <Button 

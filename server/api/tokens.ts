@@ -3,16 +3,36 @@ import multer from 'multer';
 import { storage } from '../storage';
 import { createToken } from '../services/token-service';
 import { uploadTokenMetadata } from '../services/metadata-service';
+import { compressionService } from '../services/compression-service';
 
 const router = express.Router();
 
 // Set up multer for memory storage (files stored in memory not disk)
 const upload = multer({ storage: multer.memoryStorage() });
 
+interface TokenResult {
+  success: boolean;
+  mint?: string;
+  mintAddress?: string;
+  signature?: string;
+  tokenPoolId?: string;
+  error?: string;
+}
+
 // Create token endpoint
 router.post('/api/tokens', upload.single('image'), async (req, res) => {
   try {
-    const { name, symbol, description, supply, decimals, creatorId, creatorAddress, whitelistEnabled } = req.body;
+    const { 
+      name, 
+      symbol, 
+      description, 
+      supply, 
+      decimals, 
+      creatorId, 
+      creatorAddress, 
+      whitelistEnabled,
+      isCompressed
+    } = req.body;
     
     // Basic validation
     if (!name || !symbol || !description || !supply || !creatorAddress) {
@@ -36,17 +56,32 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       return res.status(500).json({ error: metadataResult.error });
     }
     
-    // 2. Create token on-chain
-    const tokenResult = await createToken(
-      name,
-      symbol,
-      metadataResult.metadataUri || '',
-      parseInt(decimals) || 6,
-      parseInt(supply) || 1000000
-    );
+    let tokenResult: TokenResult;
+    if (isCompressed === 'true') {
+      const compressedResult = await compressionService.createCompressedToken(
+        name,
+        symbol,
+        parseInt(decimals) || 9,
+        parseInt(supply)
+      );
+      tokenResult = {
+        success: true,
+        mint: compressedResult.mint,
+        signature: compressedResult.signature,
+        tokenPoolId: compressedResult.tokenPoolId.toString()
+      };
+    } else {
+      tokenResult = await createToken(
+        name,
+        symbol,
+        metadataResult.metadataUri || '',
+        parseInt(decimals) || 6,
+        parseInt(supply)
+      );
+    }
     
-    if (!tokenResult.success) {
-      return res.status(500).json({ error: tokenResult.error });
+    if (!tokenResult.success || tokenResult.error) {
+      return res.status(500).json({ error: tokenResult.error || 'Token creation failed' });
     }
     
     // 3. Store token in database
@@ -57,19 +92,21 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       supply: parseInt(supply),
       creatorId: parseInt(creatorId),
       creatorAddress,
-      mintAddress: tokenResult?.mintAddress || '',
+      mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
       metadataUri: metadataResult.metadataUri || '',
       whitelistEnabled: whitelistEnabled === 'true',
+      isCompressed: isCompressed === 'true',
+      compressionState: isCompressed === 'true' ? 'compressed' : 'uncompressed',
+      tokenPoolId: tokenResult.tokenPoolId || null,
     });
     
     return res.status(201).json({
       success: true,
       token: {
         ...newToken,
-        mintAddress: tokenResult?.mintAddress || '',
+        mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
         metadataUri: metadataResult.metadataUri || '',
-        signature: tokenResult?.signature || '',
-        explorerUrl: tokenResult?.explorerUrl || ''
+        signature: tokenResult.signature || '',
       }
     });
   } catch (error) {
