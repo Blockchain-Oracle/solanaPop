@@ -1,0 +1,16 @@
+# Use the default provider (Node.js) and ensure pnpm is available
+[phases.setup]
+nixPkgs = ['nodejs_23', 'pnpm']
+
+[phases.install]
+cmds = ['pnpm install --frozen-lockfile']
+
+[phases.build]
+cmds = ['pnpm build']
+cacheDirectories = ['node_modules/.cache']
+
+[start]
+cmd = 'pnpm start'
+
+[variables]
+NODE_ENV = 'production'
