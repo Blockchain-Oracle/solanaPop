@@ -10,6 +10,49 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/solanapop_dev
+      - PORT=80
+      - SERVICE_PRIVATE_KEY=${SERVICE_PRIVATE_KEY}
+      - PINATA_JWT=${PINATA_JWT}
+      - HELIUS_API_KEY=${HELIUS_API_KEY}
+      - COMPRESSION_PRIVATE_KEY=${COMPRESSION_PRIVATE_KEY}
+    volumes:
+      - ./server:/app/server
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - node_modules:/app/node_modules
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app/client
+      - ./shared:/app/shared
+      - ./types:/app/types
+      - node_modules:/app/node_modules
+    environment:
+      - VITE_API_URL=http://server:80
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  node_modules: 
