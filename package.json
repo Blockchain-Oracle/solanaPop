@@ -11,7 +11,6 @@
     "db:push": "drizzle-kit push",
     "db:migrate": "tsx scripts/add-creator-address.ts"
   },
-  "packageManager": "pnpm@10.8.0",
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",

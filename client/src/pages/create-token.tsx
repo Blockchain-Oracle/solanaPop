@@ -38,6 +38,7 @@ const createTokenSchema = z.object({
     .min(1, { message: "Supply must be at least 1." })
     .max(10000, { message: "Supply cannot exceed 10,000 for this type of token." }),
   decimals: z.number().min(0).max(9).default(6),
+  compressed: z.boolean().default(true),
   expiryDate: z.date().optional(),
   category: z.string().optional(),
 });
@@ -72,6 +73,7 @@ export default function CreateToken() {
       description: "",
       supply: 100,
       decimals: 6,
+      compressed: true,
       category: "event",
     },
   });
@@ -136,6 +138,7 @@ export default function CreateToken() {
         submitData.append('description', formData.description);
         submitData.append('supply', formData.supply.toString());
         submitData.append('decimals', formData.decimals.toString());
+        submitData.append('compressed', formData.compressed.toString());
         submitData.append('creatorId', userData.id.toString());
         submitData.append('creatorAddress', publicKey?.toString() || '');
         submitData.append('whitelistEnabled', 'false');
@@ -419,6 +422,34 @@ export default function CreateToken() {
                           Decimal places (usually 6-9)
                         </FormDescription>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="compressed"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border border-white/10 p-3 shadow-sm bg-solana-darker/40">
+                        <div className="space-y-0.5">
+                          <FormLabel>Compressed Token</FormLabel>
+                          <FormDescription className="text-xs text-white/50">
+                            Lower fees, higher scalability
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 bg-solana-green">
+                            <input
+                              type="checkbox"
+                              checked={field.value}
+                              onChange={field.onChange}
+                              className="peer h-0 w-0 opacity-0"
+                            />
+                            <span 
+                              className={`${field.value ? 'translate-x-6 bg-solana-darker' : 'translate-x-1 bg-white'} pointer-events-none inline-block h-4 w-4 transform rounded-full shadow-lg ring-0 transition duration-200 ease-in-out`} 
+                            />
+                          </div>
+                        </FormControl>
                       </FormItem>
                     )}
                   />
