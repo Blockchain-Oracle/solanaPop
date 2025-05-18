@@ -68,7 +68,7 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
         success: true,
         mint: compressedResult.mint,
         signature: compressedResult.signature,
-        tokenPoolId: compressedResult.tokenPoolId.toString()
+        tokenPoolId: compressedResult.tokenPoolId
       };
     } else {
       tokenResult = await createToken(

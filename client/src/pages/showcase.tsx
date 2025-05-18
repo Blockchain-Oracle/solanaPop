@@ -92,6 +92,12 @@ export default function ShowcasePage() {
                 <CalendarRange className="h-4 w-4 mr-2" />
                 {event.location}
               </div>
+              {event.website && (
+                <div className="flex items-center text-white/70">
+                  <Link className="h-4 w-4 mr-2" />
+                  Website
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
