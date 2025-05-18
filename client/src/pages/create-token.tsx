@@ -138,7 +138,7 @@ export default function CreateToken() {
         submitData.append('description', formData.description);
         submitData.append('supply', formData.supply.toString());
         submitData.append('decimals', formData.decimals.toString());
-        submitData.append('compressed', formData.compressed.toString());
+        submitData.append('isCompressed', formData.compressed.toString());
         submitData.append('creatorId', userData.id.toString());
         submitData.append('creatorAddress', publicKey?.toString() || '');
         submitData.append('whitelistEnabled', 'false');
