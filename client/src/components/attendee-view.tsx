@@ -180,12 +180,6 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
   const handleCloseScanner = () => {
     setIsScanning(false);
   };
-  
-  // For development/testing without hardware camera
-  const handleSimulateScan = () => {
-    if (!wallet.connected) return;
-    handleQrScan('solanapop://token/1/DEMO');
-  };
 
   return (
     <div className="mb-12">
@@ -237,16 +231,6 @@ export default function AttendeeView({ onShowTransaction }: AttendeeViewProps) {
             >
               <QrCodeIcon className="mr-2 h-4 w-4" /> 
               Scan QR Code
-            </Button>
-            
-            {/* Dev testing button - remove in production */}
-            <Button 
-              onClick={handleSimulateScan}
-              variant="outline"
-              className="bg-solana-darker/40 border-white/10 text-xs"
-              disabled={!wallet.connected}
-            >
-              Simulate Scan (Dev Only)
             </Button>
           </div>
           
