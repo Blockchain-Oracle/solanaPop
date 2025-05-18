@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { X, Camera, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import QrScanner from 'qr-scanner';
+import './qr-code-scanner.css';
 
 interface QRCodeScannerProps {
   onScan: (data: string) => void;
@@ -14,44 +15,82 @@ export function QRCodeScanner({ onScan, onClose, isScanning }: QRCodeScannerProp
   const { toast } = useToast();
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
+  const qrRegionRef = useRef<HTMLDivElement>(null);
 
-  // Handle successful scan
-  const handleScan = (result: any) => {
-    if (result && result.length > 0) {
-      // The library returns an array of detected codes
-      const qrData = result[0].rawValue;
-      console.log("QR Data detected:", qrData);
-      onScan(qrData);
-    }
-  };
+  useEffect(() => {
+    // Only initialize when isScanning is true and video element is available
+    if (isScanning && videoRef.current && !scannerRef.current) {
+      // Initialize the scanner with the video element and success callback
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log("QR Data detected:", result.data);
+          onScan(result.data);
+        },
+        {
+          preferredCamera: 'environment', // Use back camera on mobile
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          overlay: qrRegionRef.current || undefined,
+          onDecodeError: (error) => {
+            // This is called for each frame that doesn't contain a QR code
+            // We don't want to handle this as an error
+          },
+        }
+      );
 
-  // Handle errors
-  const handleError = (error: any) => {
-    console.error('QR Scanner error:', error);
-    setHasError(true);
-    
-    if (error?.name === 'NotAllowedError') {
-      setErrorMessage("Camera access was denied. Please grant permission and try again.");
-    } else if (error?.name === 'NotFoundError') {
-      setErrorMessage("No camera was found on your device.");
-    } else if (error?.name === 'NotReadableError') {
-      setErrorMessage("The camera is in use by another application.");
-    } else {
-      setErrorMessage("Could not access camera. Please check permissions and try again.");
+      // Start the scanner
+      scannerRef.current.start()
+        .then(() => {
+          setHasError(false);
+          setErrorMessage(null);
+        })
+        .catch((error) => {
+          console.error('QR Scanner error:', error);
+          setHasError(true);
+          
+          if (error?.name === 'NotAllowedError') {
+            setErrorMessage("Camera access was denied. Please grant permission and try again.");
+          } else if (error?.name === 'NotFoundError') {
+            setErrorMessage("No camera was found on your device.");
+          } else if (error?.name === 'NotReadableError') {
+            setErrorMessage("The camera is in use by another application.");
+          } else {
+            setErrorMessage("Could not access camera. Please check permissions and try again.");
+          }
+          
+          toast({
+            title: 'Camera Access Issue',
+            description: errorMessage || 'Could not access your camera.',
+            variant: 'destructive'
+          });
+        });
     }
-    
-    toast({
-      title: 'Camera Access Issue',
-      description: errorMessage || 'Could not access your camera.',
-      variant: 'destructive'
-    });
-  };
+
+    // Cleanup function to stop scanner when component unmounts or isScanning changes
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop();
+        scannerRef.current = null;
+      }
+    };
+  }, [isScanning, toast, onScan, errorMessage]);
 
   // Handle retry
   const handleRetry = () => {
     setHasError(false);
     setErrorMessage(null);
-    // The Scanner component will automatically try again when remounted
+    
+    // Clean up previous scanner if it exists
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current = null;
+    }
+    
+    // The scanner will reinitialize in the useEffect
   };
 
   return (
@@ -84,29 +123,12 @@ export function QRCodeScanner({ onScan, onClose, isScanning }: QRCodeScannerProp
         <>
           <div className="relative overflow-hidden rounded-xl mb-3 aspect-square">
             {isScanning && (
-              <Scanner
-                onScan={handleScan}
-                onError={handleError}
-                constraints={{ 
-                  facingMode: 'environment',
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 }
-                }}
-                styles={{
-                  container: { 
-                    width: '100%', 
-                    height: '100%' 
-                  },
-                  video: { 
-                    width: '100%', 
-                    height: '100%',
-                    objectFit: 'cover'
-                  }
-                }}
-                components={{
-                  finder: true
-                }}
-              />
+              <div className="qr-container h-full w-full relative">
+                <video ref={videoRef} className="h-full w-full object-cover"></video>
+                <div className="qr-scan-region" ref={qrRegionRef}>
+                  <div className="qr-scan-frame"></div>
+                </div>
+              </div>
             )}
           </div>
           

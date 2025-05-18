@@ -16,10 +16,7 @@ export async function transferToken(
   error?: string;
 }> {
   try {
-    console.log("MINT ADDRESS", mintAddress);
-    console.log("RECIPIENT ADDRESS", recipientAddress);
-    console.log("AMOUNT", amount);
-    const endpoint = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    const endpoint = "https://devnet.helius-rpc.com/?api-key=206916f1-2497-4852-89c5-37bba448dfdb";
     const connection = new Connection(endpoint);
     const serviceKeypair = getServiceKeypair();
     
@@ -38,15 +35,12 @@ export async function transferToken(
       new PublicKey(mintAddress),
       serviceKeypair.publicKey
     );
-    
-    // Get destination token account (recipient wallet)
     const destinationAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       serviceKeypair,
       new PublicKey(mintAddress),
       new PublicKey(recipientAddress)
     );
-    
     // Create transfer transaction
     const tx = new Transaction();
     tx.add(createTransferInstruction(

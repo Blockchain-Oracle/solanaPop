@@ -39,6 +39,7 @@ const createTokenSchema = z.object({
     .min(1, { message: "Supply must be at least 1." })
     .max(10000, { message: "Supply cannot exceed 10,000 for this type of token." }),
   decimals: z.number().min(0).max(9).default(6),
+  compressed: z.boolean().default(false),
   expiryDate: z.date().optional(),
   category: z.string().optional(),
 });
@@ -61,6 +62,7 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
       description: "",
       supply: 100,
       decimals: 6,
+      compressed: false,
       category: "event",
     },
   });
@@ -136,6 +138,7 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
         submitData.append('description', formData.description);
         submitData.append('supply', formData.supply.toString());
         submitData.append('decimals', formData.decimals.toString());
+        submitData.append('isCompressed', formData.compressed.toString());
         submitData.append('creatorId', userData.id.toString());
         submitData.append('creatorAddress', publicKey?.toString() || '');
         submitData.append('whitelistEnabled', 'false');
@@ -416,6 +419,33 @@ export default function CreatorView({ onShowQR }: CreatorViewProps) {
                         Decimal places (usually 6-9)
                       </FormDescription>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="compressed"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border border-white/10 p-3 shadow-sm bg-solana-darker/40">
+                      <div className="space-y-0.5">
+                        <FormLabel>Compressed Token</FormLabel>
+                        <FormDescription className="text-xs text-white/50">
+                          Lower fees, higher scalability
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <div 
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${field.value ? 'bg-solana-green' : 'bg-white/20'}`}
+                          onClick={() => field.onChange(!field.value)}
+                          role="switch"
+                          aria-checked={field.value}
+                        >
+                          <span 
+                            className={`${field.value ? 'translate-x-6 bg-solana-darker' : 'translate-x-1 bg-white'} pointer-events-none inline-block h-4 w-4 transform rounded-full shadow-lg ring-0 transition duration-200 ease-in-out`} 
+                          />
+                        </div>
+                      </FormControl>
                     </FormItem>
                   )}
                 />

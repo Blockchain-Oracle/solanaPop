@@ -75,6 +75,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/events", async (req: Request, res: Response) => {
+    try {
+      const { creatorId } = req.query;
+      
+      let events;
+      if (creatorId) {
+        // If creatorId is provided, filter events by creator
+        events = await storage.getEventsByCreator(parseInt(creatorId as string));
+      } else {
+        // Otherwise, return all events
+        events = await storage.getAllEvents();
+      }
+      
+      return res.status(200).json(events);
+    } catch (error) {
+      return handleError(error, res);
+    }
+  });
+
   app.get("/api/events/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);

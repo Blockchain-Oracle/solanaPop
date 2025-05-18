@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import { QRCodeModal } from "@/components/qr-code-modal";
+import { TransferForm } from "@/components/transfer-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -21,7 +22,8 @@ import {
   InfoIcon,
   Link,
   CalendarRange,
-  ShieldCheck
+  ShieldCheck,
+  Send
 } from "lucide-react";
 import { Token } from "@shared/schema";
 
@@ -36,6 +38,7 @@ export default function TokenDetail({ params }: TokenDetailProps) {
   const [, navigate] = useLocation();
   const { connected } = useWallet();
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showTransferForm, setShowTransferForm] = useState(false);
   const tokenId = parseInt(params.id);
   
   // Remove or modify this check - it's causing the redirect to home
@@ -322,6 +325,15 @@ export default function TokenDetail({ params }: TokenDetailProps) {
               
               <Button 
                 variant="outline" 
+                className="w-full bg-solana-darker/40 border-white/10 justify-start"
+                onClick={() => setShowTransferForm(!showTransferForm)}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Transfer Tokens
+              </Button>
+              
+              <Button 
+                variant="outline" 
                 className="w-full bg-solana-darker/40 border-white/10 justify-start opacity-50"
                 disabled
               >
@@ -339,6 +351,11 @@ export default function TokenDetail({ params }: TokenDetailProps) {
               </Button>
             </CardContent>
           </Card>
+          
+          {/* Transfer Form */}
+          {showTransferForm && (
+            <TransferForm token={token} onSuccess={() => setShowTransferForm(false)} />
+          )}
           
           {/* Tips & Info Card */}
           <Card className="glass border-0">

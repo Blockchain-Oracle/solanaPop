@@ -35,10 +35,9 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !symbol || !description || !supply || !creatorAddress) {
+    if (!name || !symbol || !description || !supply|| !creatorAddress) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
     // Check if image is provided
     if (!req.file) {
       return res.status(400).json({ error: 'Token image is required' });
@@ -58,12 +57,14 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
     
     let tokenResult: TokenResult;
     if (isCompressed === 'true') {
+      console.log("COMPRESSING TOKEN");
       const compressedResult = await compressionService.createCompressedToken(
         name,
         symbol,
         parseInt(decimals) || 9,
         parseInt(supply)
       );
+      console.log("COMPRESSED RESULT", compressedResult);
       tokenResult = {
         success: true,
         mint: compressedResult.mint,
@@ -71,20 +72,22 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
         tokenPoolId: compressedResult.tokenPoolId.toString()
       };
     } else {
+      console.log("CREATING UNCOMPRESSED TOKEN");
       tokenResult = await createToken(
         name,
         symbol,
-        metadataResult.metadataUri || '',
+        metadataResult.metadataUri ?? '',
         parseInt(decimals) || 6,
         parseInt(supply)
       );
+      console.log("UNCOMPRESSED TOKEN RESULT", tokenResult);
     }
     
     if (!tokenResult.success || tokenResult.error) {
       return res.status(500).json({ error: tokenResult.error || 'Token creation failed' });
     }
     
-    // 3. Store token in database
+    // // 3. Store token in database
     const newToken = await storage.createToken({
       name,
       symbol, 
@@ -93,7 +96,7 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       creatorId: parseInt(creatorId),
       creatorAddress,
       mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
-      metadataUri: metadataResult.metadataUri || '',
+      metadataUri: metadataResult.metadataUri ?? '',
       whitelistEnabled: whitelistEnabled === 'true',
       isCompressed: isCompressed === 'true',
       compressionState: isCompressed === 'true' ? 'compressed' : 'uncompressed',
@@ -105,7 +108,7 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       token: {
         ...newToken,
         mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
-        metadataUri: metadataResult.metadataUri || '',
+        metadataUri: metadataResult.metadataUri ?? '',
         signature: tokenResult.signature || '',
       }
     });
@@ -157,5 +160,77 @@ router.get('/api/tokens', async (req, res) => {
     return res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error occurred" });
   }
 });
+
+// Transfer compressed token endpoint
+router.post('/api/tokens/transfer/compressed', async (req, res) => {
+  try {
+    const { mintAddress, recipientAddress, amount } = req.body;
+    
+    // Basic validation
+    if (!mintAddress || !recipientAddress || !amount) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Check if token exists and is compressed
+    const token = await storage.getTokenByMintAddress(mintAddress);
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+    if (!token.isCompressed) {
+      return res.status(400).json({ error: 'Token is not compressed' });
+    }
+
+    // Execute transfer
+    const result = await compressionService.transferCompressedTokens(
+      mintAddress,
+      recipientAddress,
+      amount
+    );
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    return res.status(200).json({
+      success: true,
+      signature: result.signature,
+      explorerUrl: result.explorerUrl
+    });
+
+  } catch (error) {
+    console.error('Error transferring compressed token:', error);
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+  }
+});
+
+router.post('/api/tokens/mint/compressed', async (req, res) => {
+  try {
+    const { mintAddress, amount } = req.body;
+    
+    if (!mintAddress || !amount) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Basic validation
+    const result = await compressionService.mintCompressedTokens(
+      mintAddress,
+      amount
+    );
+    return res.status(200).json({
+      success: true,
+      signature: result.signature,
+      mintToSignature: result.signature
+    });
+  } catch (error) {
+    console.error('Error minting compressed token:', error);
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    });
+  }
+});
+
+
 
 export default router; 

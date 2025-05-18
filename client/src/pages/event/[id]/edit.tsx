@@ -96,13 +96,14 @@ export default function EditEventPage({ params }: EditEventPageProps) {
       });
 
       if (!response.ok) throw new Error('Failed to update event');
-
+      console.log("Event updated successfully");
       toast({
         title: "Event Updated",
         description: "Your event has been successfully updated.",
       });
       refetch();
     } catch (error) {
+      console.error("Error updating event:", error);
       toast({
         title: "Update Failed",
         description: error instanceof Error ? error.message : "Failed to update event",
