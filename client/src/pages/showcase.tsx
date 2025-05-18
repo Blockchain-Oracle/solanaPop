@@ -8,7 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
 import { Token, Event } from "@shared/schema";
 import { Progress } from "@/components/ui/progress";
-import { CalendarRange, Users, Link, Clock, Zap, ArrowDownToLine, Sparkles, Coins } from "lucide-react";
+import { 
+  CalendarRange, Users, Link, Clock, Zap, ArrowDownToLine, 
+  Sparkles, Coins, Lock, ShieldCheck, ShieldAlert 
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -46,7 +49,7 @@ export default function ShowcasePage() {
     
     // Fix the Progress component styling
     const progressClass = `h-2 ${token.isCompressed ? "bg-purple-950/30" : "bg-solana-darker/40"}`;
-    // Remove the indicatorClassName prop and use CSS variables for styling if needed
+    // Use CSS variables via style prop instead of indicatorClassName
     const progressStyle = token.isCompressed 
       ? { "--progress-foreground": "hsl(270, 75%, 60%)" } as React.CSSProperties
       : {};
@@ -58,7 +61,23 @@ export default function ShowcasePage() {
         )}
         <CardHeader>
           <CardTitle className="text-lg flex items-center justify-between">
-            {token.name}
+            <div className="flex items-center gap-2">
+              {token.name}
+              {token.whitelistEnabled && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <ShieldCheck className="h-4 w-4 ml-1 text-amber-400" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Whitelisted Access Only</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             {token.isCompressed && (
               <TooltipProvider>
                 <Tooltip>
@@ -129,6 +148,15 @@ export default function ShowcasePage() {
                 </div>
               </div>
             )}
+
+            {token.whitelistEnabled && (
+              <div className="mt-2 pt-2 border-t border-amber-800/30">
+                <div className="flex items-center text-amber-300 text-xs gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>Whitelisted wallets only</span>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -138,11 +166,51 @@ export default function ShowcasePage() {
   // Event Card Component
   const EventCard = ({ event }: { event: Event }) => {
     return (
-      <Card className="glass border-0 hover:bg-white/5 transition-all cursor-pointer"
+      <Card className={`glass border-0 hover:bg-white/5 transition-all cursor-pointer ${event.isPrivate ? 'bg-gradient-to-br from-slate-900/30 to-slate-800/20' : ''}`}
         onClick={() => navigate(`/event/${event.id}`)}>
         <CardHeader>
-          <CardTitle className="text-lg">{event.name}</CardTitle>
-          <CardDescription>{new Date(event.date).toLocaleDateString()}</CardDescription>
+          <CardTitle className="text-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {event.name}
+              {event.isPrivate && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <Lock className="h-4 w-4 ml-1 text-slate-400" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Private Event - Requires Access Code</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {event.whitelistEnabled && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <ShieldCheck className="h-4 w-4 ml-1 text-amber-400" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Whitelisted Access Only</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          </CardTitle>
+          <CardDescription className="flex items-center justify-between">
+            <span>{new Date(event.date).toLocaleDateString()}</span>
+            {event.isPrivate && (
+              <Badge variant="outline" className="bg-slate-900/50 text-slate-300 border-slate-700">
+                <Lock className="h-3 w-3 mr-1" />
+                Private
+              </Badge>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -152,7 +220,28 @@ export default function ShowcasePage() {
                 <CalendarRange className="h-4 w-4 mr-2" />
                 {event.location}
               </div>
+              <div className="flex items-center text-white/70">
+                <Users className="h-4 w-4 mr-2" />
+                {event.capacity || "∞"} Capacity
+              </div>
             </div>
+            
+            {(event.isPrivate || event.whitelistEnabled) && (
+              <div className="mt-2 pt-2 border-t border-slate-700/30">
+                {event.whitelistEnabled && (
+                  <div className="flex items-center text-amber-300 text-xs gap-2 mb-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Whitelisted wallets only</span>
+                  </div>
+                )}
+                {event.isPrivate && (
+                  <div className="flex items-center text-slate-300 text-xs gap-2">
+                    <Lock className="h-4 w-4" />
+                    <span>Access code required</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -161,11 +250,30 @@ export default function ShowcasePage() {
 
   // Filter functionality
   const [filter, setFilter] = React.useState('all');
+  const [accessFilter, setAccessFilter] = React.useState('all'); // Filter for whitelist/private
   
   const filteredTokens = tokens?.filter(token => {
-    if (filter === 'compressed') return token.isCompressed;
-    if (filter === 'standard') return !token.isCompressed;
-    return true; // 'all' filter
+    // Apply token type filter (compressed/standard)
+    const typeFilterPass = 
+      filter === 'all' ? true :
+      filter === 'compressed' ? token.isCompressed :
+      !token.isCompressed;
+    
+    // Apply access filter (whitelisted/public)
+    const accessFilterPass =
+      accessFilter === 'all' ? true :
+      accessFilter === 'whitelist' ? token.whitelistEnabled :
+      !token.whitelistEnabled;
+    
+    return typeFilterPass && accessFilterPass;
+  });
+  
+  const filteredEvents = events?.filter(event => {
+    if (accessFilter === 'all') return true;
+    if (accessFilter === 'whitelist') return event.whitelistEnabled;
+    if (accessFilter === 'private') return event.isPrivate;
+    if (accessFilter === 'public') return !event.whitelistEnabled && !event.isPrivate;
+    return true;
   });
 
   return (
@@ -183,28 +291,56 @@ export default function ShowcasePage() {
         </TabsList>
 
         <TabsContent value="tokens" className="mt-6">
-          <div className="mb-6 flex flex-wrap gap-2">
-            <Button 
-              variant={filter === 'all' ? "default" : "outline"} 
-              size="sm"
-              onClick={() => setFilter('all')}
-              className="text-xs">
-              All Tokens
-            </Button>
-            <Button 
-              variant={filter === 'compressed' ? "default" : "outline"} 
-              size="sm"
-              onClick={() => setFilter('compressed')}
-              className="text-xs bg-purple-900/60 hover:bg-purple-800/80 border-purple-800/50 text-purple-100">
-              <Zap className="h-3 w-3 mr-1" /> ZK Compressed
-            </Button>
-            <Button 
-              variant={filter === 'standard' ? "default" : "outline"}
-              size="sm" 
-              onClick={() => setFilter('standard')}
-              className="text-xs">
-              Standard SPL
-            </Button>
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-white/70 self-center mr-2">Token Type:</span>
+              <Button 
+                variant={filter === 'all' ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setFilter('all')}
+                className="text-xs">
+                All Types
+              </Button>
+              <Button 
+                variant={filter === 'compressed' ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setFilter('compressed')}
+                className="text-xs bg-purple-900/60 hover:bg-purple-800/80 border-purple-800/50 text-purple-100">
+                <Zap className="h-3 w-3 mr-1" /> ZK Compressed
+              </Button>
+              <Button 
+                variant={filter === 'standard' ? "default" : "outline"}
+                size="sm" 
+                onClick={() => setFilter('standard')}
+                className="text-xs">
+                Standard SPL
+              </Button>
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm text-white/70 self-center mr-2">Access:</span>
+              <Button 
+                variant={accessFilter === 'all' ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setAccessFilter('all')}
+                className="text-xs">
+                All Access
+              </Button>
+              <Button 
+                variant={accessFilter === 'whitelist' ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setAccessFilter('whitelist')}
+                className="text-xs bg-amber-900/50 hover:bg-amber-800/70 text-amber-100">
+                <ShieldCheck className="h-3 w-3 mr-1" /> Whitelisted
+              </Button>
+              <Button 
+                variant={accessFilter === 'public' ? "default" : "outline"}
+                size="sm" 
+                onClick={() => setAccessFilter('public')}
+                className="text-xs">
+                Public
+              </Button>
+            </div>
           </div>
           
           {tokensLoading ? (
@@ -221,16 +357,48 @@ export default function ShowcasePage() {
         </TabsContent>
 
         <TabsContent value="events" className="mt-6">
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className="text-sm text-white/70 self-center mr-2">Access:</span>
+            <Button 
+              variant={accessFilter === 'all' ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setAccessFilter('all')}
+              className="text-xs">
+              All Events
+            </Button>
+            <Button 
+              variant={accessFilter === 'whitelist' ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setAccessFilter('whitelist')}
+              className="text-xs bg-amber-900/50 hover:bg-amber-800/70 text-amber-100">
+              <ShieldCheck className="h-3 w-3 mr-1" /> Whitelisted
+            </Button>
+            <Button 
+              variant={accessFilter === 'private' ? "default" : "outline"} 
+              size="sm"
+              onClick={() => setAccessFilter('private')}
+              className="text-xs bg-slate-900/70 hover:bg-slate-800/90 text-slate-200">
+              <Lock className="h-3 w-3 mr-1" /> Private
+            </Button>
+            <Button 
+              variant={accessFilter === 'public' ? "default" : "outline"}
+              size="sm" 
+              onClick={() => setAccessFilter('public')}
+              className="text-xs">
+              Public
+            </Button>
+          </div>
+          
           {eventsLoading ? (
             <div className="text-center py-12 text-white/70">Loading events...</div>
-          ) : events?.length ? (
+          ) : filteredEvents?.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map(event => (
+              {filteredEvents.map(event => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-white/70">No events available</div>
+            <div className="text-center py-12 text-white/70">No events match your filter</div>
           )}
         </TabsContent>
       </Tabs>

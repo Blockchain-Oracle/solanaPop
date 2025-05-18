@@ -27,6 +27,7 @@ export interface IStorage {
   createEvent(event: InsertEvent): Promise<Event>;
   getEvent(id: number): Promise<Event | undefined>;
   getEventsByCreator(creatorId: number): Promise<Event[]>;
+  getAllEvents(): Promise<Event[]>;
   updateEvent(id: number, event: Partial<InsertEvent>): Promise<Event | undefined>;
   deleteEvent(id: number): Promise<boolean>;
   
@@ -165,6 +166,10 @@ export class DatabaseStorage implements IStorage {
 
   async getEventsByCreator(creatorId: number): Promise<Event[]> {
     return await db.select().from(events).where(eq(events.creatorId, creatorId));
+  }
+
+  async getAllEvents(): Promise<Event[]> {
+    return await db.select().from(events);
   }
 
   async updateEvent(id: number, updateData: Partial<InsertEvent>): Promise<Event | undefined> {
