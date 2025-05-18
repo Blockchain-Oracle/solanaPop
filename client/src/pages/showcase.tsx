@@ -42,9 +42,20 @@ export default function ShowcasePage() {
         <CardHeader>
           <CardTitle className="text-lg">{token.name}</CardTitle>
           <CardDescription>
-            <span className="bg-solana-darker/60 text-solana-green px-2 py-0.5 rounded text-xs">
-              {token.symbol}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="bg-solana-darker/60 text-solana-green px-2 py-0.5 rounded text-xs">
+                {token.symbol}
+              </span>
+              {token.isCompressed && (
+                <span className="bg-solana-darker/60 text-purple-400 px-2 py-0.5 rounded text-xs flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline">
+                    <path d="M20 5L4 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M4 5L20 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  ZK
+                </span>
+              )}
+            </div>
           </CardDescription>
         </CardHeader>
         <CardContent>

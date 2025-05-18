@@ -43,6 +43,8 @@ export interface IStorage {
   isAddressWhitelistedForToken(tokenId: number, walletAddress: string): Promise<boolean>;
   isAddressWhitelistedForEvent(eventId: number, walletAddress: string): Promise<boolean>;
   bulkAddWhitelistEntries(entries: InsertWhitelist[]): Promise<Whitelist[]>;
+
+  getTokenByMintAddress(mintAddress: string): Promise<Token | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -287,6 +289,16 @@ export class DatabaseStorage implements IStorage {
 
   async getTokensByCreatorWallet(walletAddress: string) {
     return db.select().from(tokens).where(eq(tokens.creatorAddress, walletAddress));
+  }
+
+  async getTokenByMintAddress(mintAddress: string): Promise<Token | null> {
+    try {
+      const result = await db.select().from(tokens).where(eq(tokens.mintAddress, mintAddress)).limit(1);
+      return result[0] || null;
+    } catch (error) {
+      console.error('Error getting token by mint address:', error);
+      throw error;
+    }
   }
 }
 

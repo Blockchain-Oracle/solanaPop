@@ -38,7 +38,7 @@ const createTokenSchema = z.object({
     .min(1, { message: "Supply must be at least 1." })
     .max(10000, { message: "Supply cannot exceed 10,000 for this type of token." }),
   decimals: z.number().min(0).max(9).default(6),
-  compressed: z.boolean().default(true),
+  compressed: z.boolean().default(false),
   expiryDate: z.date().optional(),
   category: z.string().optional(),
 });
@@ -73,7 +73,7 @@ export default function CreateToken() {
       description: "",
       supply: 100,
       decimals: 6,
-      compressed: true,
+      compressed: false,
       category: "event",
     },
   });
@@ -438,13 +438,12 @@ export default function CreateToken() {
                           </FormDescription>
                         </div>
                         <FormControl>
-                          <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 bg-solana-green">
-                            <input
-                              type="checkbox"
-                              checked={field.value}
-                              onChange={field.onChange}
-                              className="peer h-0 w-0 opacity-0"
-                            />
+                          <div 
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${field.value ? 'bg-solana-green' : 'bg-white/20'}`}
+                            onClick={() => field.onChange(!field.value)}
+                            role="switch"
+                            aria-checked={field.value}
+                          >
                             <span 
                               className={`${field.value ? 'translate-x-6 bg-solana-darker' : 'translate-x-1 bg-white'} pointer-events-none inline-block h-4 w-4 transform rounded-full shadow-lg ring-0 transition duration-200 ease-in-out`} 
                             />

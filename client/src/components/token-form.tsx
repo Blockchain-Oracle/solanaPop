@@ -122,8 +122,7 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to process token");
         }
-        
-        return response.json();
+        return {success: true};
       } catch (error) {
         console.error("Error with token operation:", error);
         throw error;
@@ -145,6 +144,7 @@ export function TokenForm({ token, isEditing = false, onSuccess }: TokenFormProp
       }
     },
     onError: (error) => {
+      console.error("Error with token operation:", error);
       toast({
         title: isEditing ? "Update failed" : "Creation failed",
         description: error instanceof Error 
