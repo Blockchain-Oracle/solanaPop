@@ -10,7 +10,8 @@ import { Token, Event } from "@shared/schema";
 import { Progress } from "@/components/ui/progress";
 import { 
   CalendarRange, Users, Link, Clock, Zap, ArrowDownToLine, 
-  Sparkles, Coins, Lock, ShieldCheck, ShieldAlert 
+  Sparkles, Coins, Lock, ShieldCheck, ShieldAlert,
+  Calendar, ExternalLink, Info, Tag, Package, AlertTriangle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,6 +39,28 @@ export default function ShowcasePage() {
     },
   });
 
+  // Utility function to format dates
+  const formatDate = (dateString: string | Date | null) => {
+    if (!dateString) return null;
+    const date = dateString instanceof Date ? dateString : new Date(dateString);
+    return date.toLocaleDateString(undefined, { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Check if a token is expiring soon (within 7 days)
+  const isExpiringSoon = (dateString: string | Date | null) => {
+    if (!dateString) return false;
+    const expiryDate = dateString instanceof Date ? dateString : new Date(dateString);
+    const now = new Date();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    return expiryDate.getTime() - now.getTime() < oneWeek;
+  };
+
   // Token Card Component
   const TokenCard = ({ token }: { token: Token }) => {
     const claimPercentage = Math.round((token.claimed || 0) / token.supply * 100);
@@ -53,6 +76,9 @@ export default function ShowcasePage() {
     const progressStyle = token.isCompressed 
       ? { "--progress-foreground": "hsl(270, 75%, 60%)" } as React.CSSProperties
       : {};
+    
+    const expiryDateDisplay = formatDate(token.expiryDate);
+    const isTokenExpiringSoon = isExpiringSoon(token.expiryDate);
     
     return (
       <Card className={cardClasses} onClick={() => navigate(`/token/${token.id}`)}>
@@ -99,6 +125,21 @@ export default function ShowcasePage() {
               <span className="bg-solana-darker/60 text-solana-green px-2 py-0.5 rounded text-xs">
                 {token.symbol}
               </span>
+              {token.mintAddress && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="bg-solana-darker/60 text-solana-yellow px-2 py-0.5 rounded text-xs flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        {token.mintAddress.substring(0, 4)}...{token.mintAddress.substring(token.mintAddress.length - 4)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs break-all">{token.mintAddress}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           </CardDescription>
         </CardHeader>
@@ -121,10 +162,25 @@ export default function ShowcasePage() {
                 <Users className="h-4 w-4 mr-2" />
                 {token.supply} Supply
               </div>
-              {token.expiryDate && (
-                <div className="flex items-center text-white/70">
-                  <Clock className="h-4 w-4 mr-2" />
-                  {new Date(token.expiryDate).toLocaleDateString()}
+              <div className="flex items-center text-white/70">
+                <Package className="h-4 w-4 mr-2" />
+                {token.claimed || 0} Claimed
+              </div>
+              
+              {expiryDateDisplay && (
+                <div className={`flex items-center ${isTokenExpiringSoon ? 'text-red-400' : 'text-white/70'} col-span-2`}>
+                  {isTokenExpiringSoon ? 
+                    <AlertTriangle className="h-4 w-4 mr-2" /> : 
+                    <Clock className="h-4 w-4 mr-2" />
+                  }
+                  Expires: {expiryDateDisplay}
+                </div>
+              )}
+              
+              {token.metadataUri && (
+                <div className="flex items-center text-white/70 col-span-2 text-xs">
+                  <ExternalLink className="h-3 w-3 mr-2 flex-shrink-0" />
+                  <span className="truncate">{token.metadataUri}</span>
                 </div>
               )}
             </div>
@@ -146,6 +202,14 @@ export default function ShowcasePage() {
                     <span>Eco-friendly</span>
                   </div>
                 </div>
+                <div className="text-xs mt-2 text-white/60">
+                  {token.compressionState && (
+                    <div className="flex items-center">
+                      <Info className="h-3 w-3 mr-1" />
+                      <span>State: {token.compressionState}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -159,12 +223,20 @@ export default function ShowcasePage() {
             )}
           </div>
         </CardContent>
+        <CardFooter className="text-xs text-white/50 pt-0">
+          <div>Created: {formatDate(token.createdAt)}</div>
+        </CardFooter>
       </Card>
     );
   };
 
   // Event Card Component
   const EventCard = ({ event }: { event: Event }) => {
+    const eventStartDate = formatDate(event.date);
+    const eventEndDate = formatDate(event.endDate);
+    const isStartingSoon = isExpiringSoon(event.date);
+    const isEndingSoon = isExpiringSoon(event.endDate);
+    
     return (
       <Card className={`glass border-0 hover:bg-white/5 transition-all cursor-pointer ${event.isPrivate ? 'bg-gradient-to-br from-slate-900/30 to-slate-800/20' : ''}`}
         onClick={() => navigate(`/event/${event.id}`)}>
@@ -203,7 +275,11 @@ export default function ShowcasePage() {
             </div>
           </CardTitle>
           <CardDescription className="flex items-center justify-between">
-            <span>{new Date(event.date).toLocaleDateString()}</span>
+            <div>
+              <Badge variant="outline" className="bg-solana-darker/60 text-solana-green border-0">
+                {event.eventType}
+              </Badge>
+            </div>
             {event.isPrivate && (
               <Badge variant="outline" className="bg-slate-900/50 text-slate-300 border-slate-700">
                 <Lock className="h-3 w-3 mr-1" />
@@ -215,9 +291,23 @@ export default function ShowcasePage() {
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-white/70 line-clamp-2">{event.description}</p>
+            
+            <div className="border-t border-b border-white/10 py-3 space-y-2">
+              <div className={`flex items-center ${isStartingSoon ? 'text-green-400' : 'text-white/70'}`}>
+                <Calendar className="h-4 w-4 mr-2" />
+                <span className="text-sm">Starts: {eventStartDate}</span>
+              </div>
+              {eventEndDate && (
+                <div className={`flex items-center ${isEndingSoon ? 'text-amber-400' : 'text-white/70'}`}>
+                  <CalendarRange className="h-4 w-4 mr-2" />
+                  <span className="text-sm">Ends: {eventEndDate}</span>
+                </div>
+              )}
+            </div>
+            
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="flex items-center text-white/70">
-                <CalendarRange className="h-4 w-4 mr-2" />
+                <Info className="h-4 w-4 mr-2" />
                 {event.location}
               </div>
               <div className="flex items-center text-white/70">
@@ -225,6 +315,13 @@ export default function ShowcasePage() {
                 {event.capacity || "∞"} Capacity
               </div>
             </div>
+            
+            {event.tokenId && (
+              <div className="flex items-center text-white/70 text-xs gap-2 border-t border-white/10 pt-2">
+                <Tag className="h-3 w-3" />
+                <span>Associated Token ID: {event.tokenId}</span>
+              </div>
+            )}
             
             {(event.isPrivate || event.whitelistEnabled) && (
               <div className="mt-2 pt-2 border-t border-slate-700/30">
@@ -244,6 +341,9 @@ export default function ShowcasePage() {
             )}
           </div>
         </CardContent>
+        <CardFooter className="text-xs text-white/50 pt-0">
+          <div>Created: {formatDate(event.createdAt)}</div>
+        </CardFooter>
       </Card>
     );
   };

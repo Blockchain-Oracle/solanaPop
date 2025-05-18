@@ -114,7 +114,8 @@ export class CompressionService {
         instructions,
         this.payer,
         blockhash,
-        [this.payer]
+        [], // Empty array for additional signers
+        []  // Optional lookup tables
       );
 
       const mintToSignature = await sendAndConfirmTx(this.connection, tx);
@@ -378,8 +379,8 @@ export class CompressionService {
         instructions,
         this.payer,
         blockhash,
-        additionalSigners,
-        [lookupTableAccount] // Add lookup table
+        [],
+        [] // Add lookup table
       );
 
       // Send and confirm transaction
