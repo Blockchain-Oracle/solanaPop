@@ -69,16 +69,420 @@ SolanaPop implements Solana's ZK Compression technology, allowing for:
 - Atomic compression and decompression between SPL and compressed tokens
 - Lower storage costs while maintaining Solana's security guarantees
 
-## Solana Pay Integration
+## Solana Pay Implementation
 
-SolanaPop integrates Solana Pay for seamless payment processing:
+SolanaPop extensively leverages Solana Pay for seamless token distribution and claiming. This section provides a detailed overview of how Solana Pay is implemented across different components of the system.
 
-- Generate QR codes for token claims
-- Process payments for event tickets
-- Verify transactions on-chain
-- Reference-based transaction tracking
+### Understanding Solana Pay in SolanaPop
 
-# SolanaPop: Architecture Deep Dive
+Solana Pay is used in SolanaPop to enable:
+
+1. **Tokenized Proof-of-Participation**: Generate and distribute tokenized proof of attending events
+2. **QR Code-Based Claims**: Allow attendees to scan QR codes to claim tokens
+3. **On-Chain Verification**: Securely verify all transactions on the Solana blockchain
+4. **Wallet Integration**: Seamless interaction with user wallets for token claims
+
+### Architecture Diagram
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  Client/UI      │◄───▶│  Server/API     │◄───▶│  Solana Network │
+│                 │     │                 │     │                 │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ QR Scanner      │     │ Token Service   │     │ Blockchain      │
+│ Wallet Connect  │     │ Transfer Service│     │ Transaction     │
+│ UI Components   │     │ Storage Service │     │ Confirmation    │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+### Solana Pay Flow
+
+#### 1. Token Creation and QR Generation
+
+```mermaid
+sequenceDiagram
+    participant Creator
+    participant SolanaPop
+    participant Blockchain
+    participant Database
+    
+    Creator->>SolanaPop: Create Token with parameters
+    SolanaPop->>Blockchain: Mint SPL token (standard or compressed)
+    Blockchain-->>SolanaPop: Return mint address & transaction
+    SolanaPop->>Database: Store token metadata & claim info
+    SolanaPop->>Creator: Generate token claim QR code
+    Note over SolanaPop,Creator: "QR Format: solanapop://token/{tokenId}/{tokenSymbol}"
+```
+
+#### 2. Token Claim Process
+
+```mermaid
+sequenceDiagram
+    participant Attendee
+    participant AttendeeApp
+    participant QRScanner
+    participant SolanaPayAPI
+    participant Blockchain
+    participant Database
+
+    Attendee->>AttendeeApp: Open SolanaPop App
+    AttendeeApp->>Attendee: Request wallet connection
+    Attendee->>AttendeeApp: Connect wallet
+    Attendee->>QRScanner: Scan event QR code
+    QRScanner->>AttendeeApp: Parse QR data (token ID + symbol)
+    AttendeeApp->>SolanaPayAPI: Submit claim request with wallet address
+    SolanaPayAPI->>Database: Check token availability & claim eligibility
+    SolanaPayAPI->>Blockchain: Execute token transfer to user wallet
+    Blockchain-->>SolanaPayAPI: Confirm transaction
+    SolanaPayAPI->>Database: Record successful claim
+    SolanaPayAPI-->>AttendeeApp: Return claim confirmation
+    AttendeeApp->>Attendee: Display success & show token in collection
+```
+
+### Database Schema for Solana Pay
+
+The database structure supporting Solana Pay functionality includes:
+
+```
+┌───────────────┐       ┌───────────────┐       ┌───────────────┐
+│    tokens     │       │  token_claims │       │     users     │
+├───────────────┤       ├───────────────┤       ├───────────────┤
+│ id            │──┐    │ id            │    ┌──│ id            │
+│ name          │  │    │ tokenId       │◄───┘  │ username      │
+│ symbol        │  └───▶│ userId        │       │ walletAddress │
+│ mintAddress   │       │ walletAddress │       └───────────────┘
+│ supply        │       │ claimedAt     │
+│ claimed       │       │ transactionId │
+│ isCompressed  │       │ reference     │
+│ creatorAddress│       │ status        │
+└───────────────┘       └───────────────┘
+```
+
+Key fields related to Solana Pay:
+- **tokens.mintAddress**: The on-chain address of the token mint
+- **tokens.isCompressed**: Whether the token uses ZK Compression
+- **tokenClaims.walletAddress**: User's Solana wallet address for the claim
+- **tokenClaims.transactionId**: Solana transaction signature
+- **tokenClaims.reference**: Unique reference ID used for transaction tracking
+- **tokenClaims.status**: Status of the claim (pending, confirmed, failed)
+
+### Client-Side Implementation
+
+The client-side implementation of Solana Pay involves multiple key components:
+
+#### 1. QR Code Scanner
+
+```tsx
+// Simplified from client/src/components/qr-code-scanner.tsx
+const QRCodeScanner = ({ onScan, onClose, isScanning }) => {
+  // Initialize QR scanner
+  useEffect(() => {
+    if (isScanning && videoRef.current) {
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log("QR Data detected:", result.data);
+          onScan(result.data);  // Process detected QR code
+        },
+        {
+          preferredCamera: 'environment',
+          // Additional scanner options
+        }
+      );
+      
+      scannerRef.current.start();
+    }
+    
+    // Cleanup when component unmounts
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop();
+      }
+    };
+  }, [isScanning, onScan]);
+  
+  // Component rendering
+};
+```
+
+#### 2. QR Code Parsing and Token Claiming
+
+```tsx
+// From client/src/components/attendee-view.tsx
+const parseQrData = (qrData) => {
+  // Parse format: solanapop://token/{tokenId}/{tokenSymbol}
+  const qrRegex = /solanapop:\/\/token\/([^/]+)\/([^/]+)/;
+  const match = qrData.match(qrRegex);
+  
+  if (!match || match.length < 3) return null;
+  
+  return {
+    tokenId: match[1],
+    tokenSymbol: match[2]
+  };
+};
+
+const handleQrScan = async (qrData) => {
+  try {
+    // Parse QR data to extract token information
+    const tokenData = parseQrData(qrData);
+    if (!tokenData) {
+      // Handle invalid QR code
+      return;
+    }
+    
+    // Process the token claim using React Query mutation
+    claimTokenMutation.mutate(parseInt(tokenData.tokenId));
+    
+  } catch (error) {
+    // Error handling
+  }
+};
+```
+
+#### 3. Wallet Integration
+
+The application integrates with Solana wallets using the Solana Wallet Adapter:
+
+```tsx
+// Simplified wallet integration
+const wallet = useWallet();  // Custom hook that wraps Solana Wallet Adapter
+
+// Check wallet connection before operations
+const handleScanClick = () => {
+  if (!wallet.connected) {
+    toast({
+      title: 'Wallet Not Connected',
+      description: 'Please connect your wallet to scan for tokens',
+      variant: 'destructive'
+    });
+    return;
+  }
+  
+  setIsScanning(true);
+};
+```
+
+### Server-Side Implementation
+
+The backend implementation handles token transfers, transaction verification, and claim recording:
+
+#### 1. Token Claim API Endpoint
+
+```typescript
+// Simplified from server/routes.ts
+app.post('/api/claims', async (req, res) => {
+  try {
+    const { tokenId, userId, walletAddress } = req.body;
+    
+    // 1. Validate the claim request
+    const token = await getTokenById(tokenId);
+    if (!token) return res.status(404).json({ error: 'Token not found' });
+    
+    // 2. Check if token can be claimed (supply, expiry, whitelist, etc.)
+    if (token.claimed >= token.supply) {
+      return res.status(409).json({ error: 'Token supply exhausted' });
+    }
+    
+    // 3. Generate a unique reference for this claim
+    const reference = crypto.randomBytes(32);
+    const referenceStr = reference.toString('base64');
+    
+    // 4. Create pending claim record
+    const claim = await createTokenClaim({
+      tokenId,
+      userId,
+      walletAddress,
+      reference: referenceStr,
+      status: 'pending'
+    });
+    
+    // 5. Execute the token transfer
+    const transferService = new TransferService();
+    const result = await transferService.transferToken(
+      token,
+      walletAddress,
+      reference
+    );
+    
+    // 6. Update claim status with transaction signature
+    await updateClaimStatus(claim.id, 'confirmed', result.signature);
+    
+    // 7. Update token claimed count
+    await incrementTokenClaimCount(tokenId);
+    
+    // 8. Return success with token information
+    res.status(200).json({
+      success: true,
+      token,
+      transactionId: result.signature
+    });
+    
+  } catch (error) {
+    // Error handling
+    res.status(500).json({ error: error.message });
+  }
+});
+```
+
+#### 2. Transfer Service
+
+The TransferService handles the actual token transfers on the Solana blockchain:
+
+```typescript
+// Simplified from server/services/transfer-service.ts
+export class TransferService {
+  private keysService: KeysService;
+  private compressionService: CompressionService;
+  
+  constructor() {
+    this.keysService = new KeysService();
+    this.compressionService = new CompressionService();
+  }
+  
+  async transferToken(token, recipientAddress, reference) {
+    // Get service keypair for signing transactions
+    const keypair = await this.keysService.getServiceKeypair();
+    
+    if (token.isCompressed) {
+      // Handle compressed token transfer
+      return await this.transferCompressedToken(
+        token,
+        keypair,
+        recipientAddress,
+        reference
+      );
+    } else {
+      // Handle standard SPL token transfer
+      return await this.transferStandardToken(
+        token,
+        keypair,
+        recipientAddress,
+        reference
+      );
+    }
+  }
+  
+  private async transferStandardToken(token, keypair, recipientAddress, reference) {
+    const connection = new Connection(process.env.SOLANA_RPC_URL);
+    
+    // Create transaction instruction for token transfer
+    const transferInstruction = createTransferInstruction(
+      new PublicKey(token.mintAddress),
+      new PublicKey(recipientAddress),
+      keypair.publicKey,
+      1,  // amount (1 token)
+      [],  // no additional signers
+      TOKEN_PROGRAM_ID
+    );
+    
+    // Add reference to transaction for tracking
+    transferInstruction.keys.push({
+      pubkey: new PublicKey(reference),
+      isSigner: false,
+      isWritable: false,
+    });
+    
+    // Create, sign and send transaction
+    const transaction = new Transaction().add(transferInstruction);
+    const signature = await sendAndConfirmTransaction(
+      connection,
+      transaction,
+      [keypair]
+    );
+    
+    return { signature };
+  }
+  
+  // Additional methods for compressed token transfers...
+}
+```
+
+### Advanced Solana Pay Features
+
+#### Reference-Based Transaction Tracking
+
+SolanaPop implements the Solana Pay reference system to track and verify transactions:
+
+1. **Unique Reference Generation**: Each token claim generates a unique reference identifier
+2. **Reference Inclusion**: The reference is added to transaction instructions for on-chain tracking
+3. **Transaction Verification**: The backend can verify that a specific claim transaction was executed by looking up the reference
+
+```typescript
+// Simplified reference handling
+const reference = crypto.randomBytes(32);
+const referenceBase64 = reference.toString('base64');
+
+// Add reference to transaction
+transferInstruction.keys.push({
+  pubkey: new PublicKey(reference),
+  isSigner: false,
+  isWritable: false,
+});
+
+// Later, verify transaction completion
+const signature = "transaction_signature_here";
+const connection = new Connection(process.env.SOLANA_RPC_URL);
+const transaction = await connection.getParsedTransaction(signature);
+
+const isValid = transaction.transaction.message.accountKeys.some(
+  key => key.pubkey.toBase58() === new PublicKey(reference).toBase58()
+);
+```
+
+#### Integration with Compressed Tokens
+
+SolanaPop uniquely combines Solana Pay with ZK Compression for more cost-effective token distributions:
+
+```typescript
+async transferCompressedToken(token, keypair, recipientAddress, reference) {
+  // Using Light Protocol's compression SDK
+  const compressedToken = await this.compressionService.getCompressedToken(
+    token.stateTreeId,
+    token.mintAddress
+  );
+  
+  // Create compressed token transfer with reference
+  const tx = await compressedToken.transfer({
+    source: keypair.publicKey.toString(),
+    destination: recipientAddress,
+    amount: 1,
+    reference: new PublicKey(reference),
+  });
+  
+  // Sign and send the transaction
+  const signedTx = await this.keysService.signTransaction(tx);
+  const signature = await this.compressionService.sendTransaction(signedTx);
+  
+  return { signature };
+}
+```
+
+### Testing and Development
+
+For testing Solana Pay functionality without real transactions, SolanaPop includes:
+
+1. **Mock Transfer Mode**: A testing mode that simulates transactions without blockchain interaction
+2. **Development Endpoints**: Special API endpoints that return predictable responses for UI testing
+3. **Transaction Simulation**: Capability to simulate transactions without submitting them
+
+### Security Considerations
+
+When implementing Solana Pay, several security measures are essential:
+
+1. **Transaction Verification**: Always verify that transactions were executed as expected
+2. **Reference Validation**: Ensure references match expected formats and sources
+3. **Wallet Address Validation**: Validate wallet addresses before attempting transfers
+4. **Supply Management**: Implement proper checks to prevent over-issuance of tokens
+5. **Error Handling**: Comprehensive error handling for transaction failures
+
+### Conclusion
+
+SolanaPop's implementation of Solana Pay demonstrates how blockchain technology can be leveraged for token distribution and proof-of-participation use cases. By combining QR codes, wallet integration, and on-chain transactions, the platform provides a seamless user experience while maintaining the security and verifiability of blockchain technology.
 
 ## Services Layer Architecture
 
@@ -161,17 +565,6 @@ The compression flow works as follows:
    - Requests validity proofs from RPC
    - Bundles proof with transfer transaction
    - Submits transaction with additional compute budget
-
-## Solana Pay Integration
-
-The platform integrates Solana Pay through:
-
-1. QR code generation for token claims and event tickets
-2. Unique reference generation for transaction tracking
-3. On-chain verification of payment completions
-4. Integration with frontend for seamless payment flows
-
-This architecture enables SolanaPop to provide a cost-effective, scalable solution for token and event management on Solana, leveraging cutting-edge ZK Compression technology while maintaining a user-friendly experience.
 
 ## Security Considerations
 
