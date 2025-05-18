@@ -1,6 +1,5 @@
 import { PublicKey, Connection, Transaction } from '@solana/web3.js';
 import { createQR, encodeURL, findReference, validateTransfer } from '@solana/pay';
-import BigNumber from 'bignumber.js';
 
 // Types for QR code generation options
 export type SolanaPayQROptions = {
@@ -136,42 +135,42 @@ export async function getQRCodeAsBase64(qrCode: any) {
   }
 }
 
-// Function to verify a transaction using reference
-export async function verifyTransaction(
-  connection: Connection,
-  reference: PublicKey,
-  recipient?: PublicKey, 
-  amount?: BigNumber
-) {
-  try {
-    // Find the transaction with the reference
-    const signatureInfo = await findReference(connection, reference, { finality: 'confirmed' });
+// // Function to verify a transaction using reference
+// export async function verifyTransaction(
+//   connection: Connection,
+//   reference: PublicKey,
+//   recipient?: PublicKey, 
+//   amount?: BigNumber
+// ) {
+//   try {
+//     // Find the transaction with the reference
+//     const signatureInfo = await findReference(connection, reference, { finality: 'confirmed' });
     
-    // If no recipient or amount provided, just confirm the transaction exists
-    if (!recipient && !amount) {
-      return { signature: signatureInfo.signature, status: 'confirmed' };
-    }
+//     // If no recipient or amount provided, just confirm the transaction exists
+//     if (!recipient && !amount) {
+//       return { signature: signatureInfo.signature, status: 'confirmed' };
+//     }
     
-    // Validate that the transaction has the expected parameters
-    if (recipient && amount) {
-      const response = await validateTransfer(
-        connection,
-        signatureInfo.signature,
-        {
-          recipient,
-          amount,
-          reference
-        },
-        { commitment: 'confirmed' }
-      );
-    }
+//     // Validate that the transaction has the expected parameters
+//     if (recipient && amount) {
+//       const response = await validateTransfer(
+//         connection,
+//         signatureInfo.signature,
+//         {
+//           recipient,
+//           amount,
+//           reference
+//         },
+//         { commitment: 'confirmed' }
+//       );
+//     }
     
-    return { signature: signatureInfo.signature, status: 'validated' };
-  } catch (error) {
-    console.error("Error verifying transaction:", error);
-    throw error;
-  }
-}
+//     return { signature: signatureInfo.signature, status: 'validated' };
+//   } catch (error) {
+//     console.error("Error verifying transaction:", error);
+//     throw error;
+//   }
+// }
 
 // Function to parse a transaction from base64
 export function parseTransactionFromBase64(transactionBase64: string): Transaction {
