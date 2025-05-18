@@ -35,25 +35,25 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !symbol || !description || !supply) {
+    if (!name || !symbol || !description || !supply|| !creatorAddress) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     // Check if image is provided
-    // if (!req.file) {
-    //   return res.status(400).json({ error: 'Token image is required' });
-    // }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Token image is required' });
+    }
     
     // 1. Upload metadata
-    // const metadataResult = await uploadTokenMetadata(
-    //   name,
-    //   symbol,
-    //   description,
-    //   req.file.buffer
-    // );
+    const metadataResult = await uploadTokenMetadata(
+      name,
+      symbol,
+      description,
+      req.file.buffer
+    );
     
-    // if (!metadataResult.success) {
-    //   return res.status(500).json({ error: metadataResult.error });
-    // }
+    if (!metadataResult.success) {
+      return res.status(500).json({ error: metadataResult.error });
+    }
     
     let tokenResult: TokenResult;
     if (isCompressed === 'true') {
@@ -76,7 +76,7 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
       tokenResult = await createToken(
         name,
         symbol,
-        /*metadataResult.metadataUri*/  '',
+        metadataResult.metadataUri ?? '',
         parseInt(decimals) || 6,
         parseInt(supply)
       );
@@ -88,27 +88,27 @@ router.post('/api/tokens', upload.single('image'), async (req, res) => {
     }
     
     // // 3. Store token in database
-    // const newToken = await storage.createToken({
-    //   name,
-    //   symbol, 
-    //   description,
-    //   supply: parseInt(supply),
-    //   creatorId: parseInt(creatorId),
-    //   creatorAddress,
-    //   mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
-    //   metadataUri: /*metadataResult.metadataUri*/ '',
-    //   whitelistEnabled: whitelistEnabled === 'true',
-    //   isCompressed: isCompressed === 'true',
-    //   compressionState: isCompressed === 'true' ? 'compressed' : 'uncompressed',
-    //   tokenPoolId: tokenResult.tokenPoolId || null,
-    // });
+    const newToken = await storage.createToken({
+      name,
+      symbol, 
+      description,
+      supply: parseInt(supply),
+      creatorId: parseInt(creatorId),
+      creatorAddress,
+      mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
+      metadataUri: metadataResult.metadataUri ?? '',
+      whitelistEnabled: whitelistEnabled === 'true',
+      isCompressed: isCompressed === 'true',
+      compressionState: isCompressed === 'true' ? 'compressed' : 'uncompressed',
+      tokenPoolId: tokenResult.tokenPoolId || null,
+    });
     
     return res.status(201).json({
       success: true,
       token: {
-        // ...newToken,
+        ...newToken,
         mintAddress: tokenResult.mint || tokenResult.mintAddress || '',
-        metadataUri: /*metadataResult.metadataUri*/ '',
+        metadataUri: metadataResult.metadataUri ?? '',
         signature: tokenResult.signature || '',
       }
     });
@@ -172,13 +172,13 @@ router.post('/api/tokens/transfer/compressed', async (req, res) => {
     }
 
     // Check if token exists and is compressed
-    // const token = await storage.getTokenByMintAddress(mintAddress);
-    // if (!token) {
-    //   return res.status(404).json({ error: 'Token not found' });
-    // }
-    // if (!token.isCompressed) {
-    //   return res.status(400).json({ error: 'Token is not compressed' });
-    // }
+    const token = await storage.getTokenByMintAddress(mintAddress);
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+    if (!token.isCompressed) {
+      return res.status(400).json({ error: 'Token is not compressed' });
+    }
 
     // Execute transfer
     const result = await compressionService.transferCompressedTokens(
