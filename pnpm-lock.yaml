@@ -140,15 +140,6 @@ importers:
       '@types/pg':
         specifier: ^8.15.1
         version: 8.15.2
-      '@yudiel/react-qr-scanner':
-        specifier: ^2.3.1
-        version: 2.3.1(@types/emscripten@1.40.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      '@zxing/browser':
-        specifier: ^0.1.5
-        version: 0.1.5(@zxing/library@0.21.3)
-      '@zxing/library':
-        specifier: ^0.21.3
-        version: 0.21.3
       axios:
         specifier: ^1.9.0
         version: 1.9.0
@@ -251,9 +242,6 @@ importers:
       react-qr-code:
         specifier: ^2.0.15
         version: 2.0.15(react@18.3.1)
-      react-qr-reader:
-        specifier: 3.0.0-beta-1
-        version: 3.0.0-beta-1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-resizable-panels:
         specifier: ^2.1.7
         version: 2.1.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3334,9 +3322,6 @@ packages:
   '@types/d3-timer@3.0.2':
     resolution: {integrity: sha512-Ps3T8E8dZDam6fUyNiMkekK3XUsaUEik+idO9/YjPtfj2qruF8tFBXS7XhtE4iIXBLxhmLjP3SXpLhVf21I9Lw==}
 
-  '@types/emscripten@1.40.1':
-    resolution: {integrity: sha512-sr53lnYkQNhjHNN0oJDdUm5564biioI5DuOpycufDVK7D3y+GR3oUswe2rlwY1nPNyusHbrJ9WoTyIHl4/Bpwg==}
-
   '@types/estree@1.0.7':
     resolution: {integrity: sha512-w28IoSUCJpidD/TGviZwwMJckNESJZXFu7NBZ5YJ4mEUnNraUn9Pm8HSZm/jDF1pDWYKspWE7oVphigUPRakIQ==}
 
@@ -3609,33 +3594,6 @@ packages:
   '@xrplf/secret-numbers@1.0.0':
     resolution: {integrity: sha512-qsCLGyqe1zaq9j7PZJopK+iGTGRbk6akkg6iZXJJgxKwck0C5x5Gnwlb1HKYGOwPKyrXWpV6a2YmcpNpUFctGg==}
 
-  '@yudiel/react-qr-scanner@2.3.1':
-    resolution: {integrity: sha512-fE7217QvMKT/AxAEeKIheFhkKO13PSGHiqJfg4dLK/SGPpelpXNpZZ0Qeph1Cm08/AqMlGhvzQbCmoPeD/VVIg==}
-    peerDependencies:
-      react: ^17 || ^18 || ^19
-      react-dom: ^17 || ^18 || ^19
-
-  '@zxing/browser@0.0.7':
-    resolution: {integrity: sha512-AepzMgDnD6EjxewqmXpHJsi4S3Gw9ilZJLIbTf6fWuWySEcHBodnGu3p7FWlgq1Sd5QyfPhTum5z3CBkkhMVng==}
-    peerDependencies:
-      '@zxing/library': ^0.18.3
-
-  '@zxing/browser@0.1.5':
-    resolution: {integrity: sha512-4Lmrn/il4+UNb87Gk8h1iWnhj39TASEHpd91CwwSJtY5u+wa0iH9qS0wNLAWbNVYXR66WmT5uiMhZ7oVTrKfxw==}
-    peerDependencies:
-      '@zxing/library': ^0.21.0
-
-  '@zxing/library@0.18.6':
-    resolution: {integrity: sha512-bulZ9JHoLFd9W36pi+7e7DnEYNJhljYjZ1UTsKPOoLMU3qtC+REHITeCRNx40zTRJZx18W5TBRXt5pq2Uopjsw==}
-    engines: {node: '>= 10.4.0'}
-
-  '@zxing/library@0.21.3':
-    resolution: {integrity: sha512-hZHqFe2JyH/ZxviJZosZjV+2s6EDSY0O24R+FQmlWZBZXP9IqMo7S3nb3+2LBWxodJQkSurdQGnqE7KXqrYgow==}
-    engines: {node: '>= 10.4.0'}
-
-  '@zxing/text-encoding@0.9.0':
-    resolution: {integrity: sha512-U/4aVJ2mxI0aDNI8Uq0wEhMgY+u4CNtEb0om3+y3+niDAsoTCOB33UF0sxpzqzdqXLqmvc+vZyAt4O8pPdfkwA==}
-
   abitype@1.0.8:
     resolution: {integrity: sha512-ZeiI6h3GnW06uYDLx0etQtX/p8E24UaHHBj57RSjK7YBFe7iuVn07EDpOeP451D06sF27VOz9JJPlIKJmXgkEg==}
     peerDependencies:
@@ -3784,9 +3742,6 @@ packages:
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
-
-  barcode-detector@3.0.3:
-    resolution: {integrity: sha512-N07CNbpudOB3oIYm0tvaezCM6zy9HOlYnUCBhX6Q5UGhnqngyBgOf/p/5ZhqHxsf9/QYy5dX95RrblIs0hNaiw==}
 
   base-x@3.0.11:
     resolution: {integrity: sha512-xz7wQ8xDhdyP7tQxwdteLYeFfS68tSMNCZ/Y37WJ4bhGfKPpqEIlmIyueQHqOyoPhE6xNUqjzRr8ra0eF9VRvA==}
@@ -6060,12 +6015,6 @@ packages:
       react: ~16
       react-dom: ~16
 
-  react-qr-reader@3.0.0-beta-1:
-    resolution: {integrity: sha512-5HeFH9x/BlziRYQYGK2AeWS9WiKYZtGGMs9DXy3bcySTX3C9UJL9EwcPnWw8vlf7JP4FcrAlr1SnZ5nsWLQGyw==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0
-      react-dom: ^16.8.0 || ^17.0.0
-
   react-refresh@0.14.2:
     resolution: {integrity: sha512-jCvmsr+1IUSMUyzOkRcvnVbX3ZYC6g9TDrDbFuFmRDq7PD4yaGbLKNQL6k2jnArV8hjYxh7hVhAZB6s9HDGpZA==}
     engines: {node: '>=0.10.0'}
@@ -6226,11 +6175,6 @@ packages:
   rollup-pluginutils@2.8.2:
     resolution: {integrity: sha512-EEp9NhnUkwY8aif6bxgovPHMoMoNr2FulJziTndpt5H9RdwC47GSGuII9XxpSdzVGM0GWrNPHV6ie1LTNJPaLQ==}
 
-  rollup@2.79.2:
-    resolution: {integrity: sha512-fS6iqSPZDs3dr/y7Od6y5nha8dW1YnbgtsyotCVvoFGKbERG++CVRFv1meyGDE1SNItQA8BrnCw7ScdAhRJ3XQ==}
-    engines: {node: '>=10.0.0'}
-    hasBin: true
-
   rollup@4.40.2:
     resolution: {integrity: sha512-tfUOg6DTP4rhQ3VjOO6B4wyrJnGOX85requAXvqYTHsOgb2TFJdZ3aWpT8W2kPoypSGP7dZUyzxJ9ee4buM5Fg==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
@@ -6283,9 +6227,6 @@ packages:
 
   sdp@2.12.0:
     resolution: {integrity: sha512-jhXqQAQVM+8Xj5EjJGVweuEzgtGWb3tmEEpl3CLP3cStInSbVHSg0QWOGQzNq8pSID4JkpeV2mPqlMDLrm0/Vw==}
-
-  sdp@3.2.0:
-    resolution: {integrity: sha512-d7wDPgDV3DDiqulJjKiV2865wKsJ34YI+NDREbm+FySq6WuKOikwyNQcm+doLAZ1O6ltdO0SeKle2xMpN3Brgw==}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -6602,10 +6543,6 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
-
-  ts-custom-error@3.3.1:
-    resolution: {integrity: sha512-5OX1tzOjxWEgsr/YEUWSuPrQ00deKLh6D7OTWcvNHm12/7QPyRh8SYpyWvA4IZv8H/+GQWQEh/kwo95Q9OVW1A==}
-    engines: {node: '>=14.0.0'}
 
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
@@ -6950,10 +6887,6 @@ packages:
     resolution: {integrity: sha512-TbrbBmiQBL9n0/5bvDdORc6ZfRY/Z7JnEj+EYOD1ghseZdpJ+nF2yx14k3LgQKc7JZnG7HAcL+zHnY25So9d7A==}
     engines: {node: '>=6.0.0', npm: '>=3.10.0'}
 
-  webrtc-adapter@9.0.3:
-    resolution: {integrity: sha512-5fALBcroIl31OeXAdd1YUntxiZl1eHlZZWzNg3U4Fn+J9/cGL3eT80YlrsWGvj2ojuz1rZr2OXkgCzIxAZ7vRQ==}
-    engines: {node: '>=6.0.0', npm: '>=3.10.0'}
-
   whatwg-fetch@3.6.20:
     resolution: {integrity: sha512-EqhiFU6daOA8kpjOWTL0olhVOF3i7OrFzSYiGsEMB8GcXS+RrzauAERX65xMeNWVqxA6HXH2m69Z9LaKKdisfg==}
 
@@ -7141,11 +7074,6 @@ packages:
 
   zod@3.24.4:
     resolution: {integrity: sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==}
-
-  zxing-wasm@2.1.2:
-    resolution: {integrity: sha512-h89XsAmUKGDGJKnAHpHlHiEM5cXFh3ShVKQowQRqcP3IhBviWvjh2kpRDDSbDUGqlb44wDzfUroPwzo4zQRsVw==}
-    peerDependencies:
-      '@types/emscripten': '>=1.39.6'
 
 snapshots:
 
@@ -10770,8 +10698,6 @@ snapshots:
 
   '@types/d3-timer@3.0.2': {}
 
-  '@types/emscripten@1.40.1': {}
-
   '@types/estree@1.0.7': {}
 
   '@types/express-serve-static-core@4.19.6':
@@ -11526,42 +11452,6 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@yudiel/react-qr-scanner@2.3.1(@types/emscripten@1.40.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
-    dependencies:
-      barcode-detector: 3.0.3(@types/emscripten@1.40.1)
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      webrtc-adapter: 9.0.3
-    transitivePeerDependencies:
-      - '@types/emscripten'
-
-  '@zxing/browser@0.0.7(@zxing/library@0.18.6)':
-    dependencies:
-      '@zxing/library': 0.18.6
-    optionalDependencies:
-      '@zxing/text-encoding': 0.9.0
-
-  '@zxing/browser@0.1.5(@zxing/library@0.21.3)':
-    dependencies:
-      '@zxing/library': 0.21.3
-    optionalDependencies:
-      '@zxing/text-encoding': 0.9.0
-
-  '@zxing/library@0.18.6':
-    dependencies:
-      ts-custom-error: 3.3.1
-    optionalDependencies:
-      '@zxing/text-encoding': 0.9.0
-
-  '@zxing/library@0.21.3':
-    dependencies:
-      ts-custom-error: 3.3.1
-    optionalDependencies:
-      '@zxing/text-encoding': 0.9.0
-
-  '@zxing/text-encoding@0.9.0':
-    optional: true
-
   abitype@1.0.8(typescript@5.6.3)(zod@3.22.4):
     optionalDependencies:
       typescript: 5.6.3
@@ -11734,12 +11624,6 @@ snapshots:
       babel-preset-current-node-syntax: 1.1.0(@babel/core@7.27.1)
 
   balanced-match@1.0.2: {}
-
-  barcode-detector@3.0.3(@types/emscripten@1.40.1):
-    dependencies:
-      zxing-wasm: 2.1.2(@types/emscripten@1.40.1)
-    transitivePeerDependencies:
-      - '@types/emscripten'
 
   base-x@3.0.11:
     dependencies:
@@ -14261,14 +14145,6 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
       webrtc-adapter: 7.7.1
 
-  react-qr-reader@3.0.0-beta-1(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
-    dependencies:
-      '@zxing/browser': 0.0.7(@zxing/library@0.18.6)
-      '@zxing/library': 0.18.6
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      rollup: 2.79.2
-
   react-refresh@0.14.2: {}
 
   react-refresh@0.17.0: {}
@@ -14450,10 +14326,6 @@ snapshots:
     dependencies:
       estree-walker: 0.6.1
 
-  rollup@2.79.2:
-    optionalDependencies:
-      fsevents: 2.3.3
-
   rollup@4.40.2:
     dependencies:
       '@types/estree': 1.0.7
@@ -14536,8 +14408,6 @@ snapshots:
   scheduler@0.25.0: {}
 
   sdp@2.12.0: {}
-
-  sdp@3.2.0: {}
 
   semver@6.3.1: {}
 
@@ -14891,8 +14761,6 @@ snapshots:
 
   tr46@0.0.3: {}
 
-  ts-custom-error@3.3.1: {}
-
   ts-interface-checker@0.1.13: {}
 
   ts-mixer@6.0.4: {}
@@ -15217,10 +15085,6 @@ snapshots:
       rtcpeerconnection-shim: 1.2.15
       sdp: 2.12.0
 
-  webrtc-adapter@9.0.3:
-    dependencies:
-      sdp: 3.2.0
-
   whatwg-fetch@3.6.20: {}
 
   whatwg-url@5.0.0:
@@ -15390,8 +15254,3 @@ snapshots:
   zod@3.22.4: {}
 
   zod@3.24.4: {}
-
-  zxing-wasm@2.1.2(@types/emscripten@1.40.1):
-    dependencies:
-      '@types/emscripten': 1.40.1
-      type-fest: 4.41.0
