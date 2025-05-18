@@ -248,7 +248,7 @@ export function TokenClaimQR({
         
         // Use string tokenId for the API URL but parse it to number for the reference
         const qrCode = createTokenClaimQR({
-          // recipient: publicKey?.toString() || '',
+          recipient: publicKey?.toString() || '',
           tokenId: (tokenId),
           baseUrl,
           userWallet: publicKey?.toString() || '',

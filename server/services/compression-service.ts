@@ -1,41 +1,24 @@
-import { Rpc, createRpc, bn, selectStateTreeInfo } from '@lightprotocol/stateless.js';
+import { Rpc, createRpc, bn } from '@lightprotocol/stateless.js';
 import { 
   CompressedTokenProgram, 
   createMint as createCompressedMint,
   getTokenPoolInfos,
   selectTokenPoolInfo,
-  selectMinCompressedTokenAccountsForTransfer
+  type StateTreeInfo,
+  type TokenPoolInfo
 } from '@lightprotocol/compressed-token';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { Token } from '@shared/schema';
 import { KeyService } from './keys-service';
 
-interface TokenPoolInfo {
-  address: PublicKey;
-  stateTreeId: string;
-  tokenPoolPda: string;
-}
-
-interface CompressedAccount {
-  hash: string;
-}
-
 interface CompressedTokenAccount {
-  compressedAccount: CompressedAccount;
-  mint: string;
-  owner: string;
-  amount: string;
+  compressedAccount: {
+    hash: string;
+  };
 }
 
 interface TokenBalance {
-  mint: string;
   balance: number;
-  decimals: number;
-}
-
-interface TokenBalanceResponse {
-  value: TokenBalance[];
-  cursor: string;
 }
 
 export class CompressionService {
@@ -85,7 +68,7 @@ export class CompressionService {
         success: true,
         mint: mint.toBase58(),
         signature: transactionSignature,
-        tokenPoolId: tokenPoolInfo.tokenPoolPda,
+        tokenPoolId: tokenPoolInfo.address.toBase58(),
       };
     } catch (error) {
       console.error('Error creating compressed token:', error);
@@ -99,8 +82,11 @@ export class CompressionService {
   ) {
     try {
       const mint = new PublicKey(mintAddress);
-      const stateTreeInfos = await this.connection.getStateTreeInfos();
+      
       const tokenPoolInfos = await getTokenPoolInfos(this.connection, mint);
+      const tokenPoolInfo = selectTokenPoolInfo(tokenPoolInfos);
+
+      const stateTreeInfo = await this.connection.getStateTreeInfo(tokenPoolInfo.stateTreeId);
       
       const mintToTxId = await CompressedTokenProgram.mintTo({
         feePayer: this.payer.publicKey,
@@ -108,8 +94,8 @@ export class CompressionService {
         mint,
         toPubkey: this.payer.publicKey,
         amount: bn(amount),
-        outputStateTreeInfo: selectStateTreeInfo(stateTreeInfos),
-        tokenPoolInfo: selectTokenPoolInfo(tokenPoolInfos)
+        outputStateTreeInfo: stateTreeInfo,
+        tokenPoolInfo
       });
 
       return {
@@ -133,13 +119,12 @@ export class CompressionService {
       const owner = new PublicKey(walletAddress);
       const mint = new PublicKey(mintAddress);
 
-      const balances = await this.connection.getCompressedTokenBalancesByOwnerV2(
-          owner,
-          { mint }
-      ) as unknown as TokenBalanceResponse;
+      const balanceResponse = await this.connection.getCompressedTokenBalancesByOwnerV2(
+        owner,
+        { mint }
+      );
 
-      // Find the balance for the specific mint
-      const balance = balances.value.find((b: TokenBalance) => b.mint === mintAddress)?.balance ?? 0;
+      const balance = balanceResponse[0]?.balance ?? 0;
 
       return {
         success: true,
@@ -168,18 +153,18 @@ export class CompressionService {
         { mint }
       );
 
-      const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
-        accounts.items,
+      const inputAccounts = await CompressedTokenProgram.mergeTokenAccounts(
+        accounts.items as CompressedTokenAccount[],
         bn(amount)
       );
 
       const proof = await this.connection.getValidityProof(
-        inputAccounts.map(account => account.compressedAccount.hash)
+        inputAccounts.map((account: CompressedTokenAccount) => account.compressedAccount.hash)
       );
 
       const transferTx = await CompressedTokenProgram.transfer({
         payer: this.payer.publicKey,
-        inputCompressedTokenAccounts: inputAccounts,
+        inputCompressedTokenAccounts: inputAccounts as ParsedTokenAccount[],
         toAddress: recipient,
         amount: bn(amount),
         recentInputStateRootIndices: proof.rootIndices,
