@@ -6,7 +6,7 @@ A token and event management platform built on Solana blockchain that leverages 
 
 **Hackathon Submission**: [1000x Hackathon](https://earn.superteam.fun/listing/1000x-hackathon/)
 
-**Demo**: [Live App](http://ws0w08k8880c4c4g4cco88gk.34.67.137.207.sslip.io/)
+**Demo**: [Live App](http://lo4ks0s4sok0484gk4k0s8ko.35.208.71.32.sslip.io/)
 
 **Demo Video**: [Loom Video](https://www.loom.com/share/4b78e0b2e32a44ec9ddd8c43a6922203?sid=3dab6696-8a1f-4684-a17d-2468d7677b25)
 
